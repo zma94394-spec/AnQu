@@ -1,0 +1,193 @@
+@import 'tailwindcss';
+
+/* ============================================================================
+ *  设计令牌 —— 硬核战术暗黑风
+ *
+ *  Tailwind v4 的 @theme 会把每个 --color-* / --font-* 编译成对应工具类：
+ *    --color-void       ->  bg-void / text-void / border-void
+ *    --color-tactical   ->  bg-tactical / text-tactical ...
+ *  因此组件里只写语义化类名，不散落十六进制色值。
+ * ========================================================================== */
+@theme {
+  /* ---- 底色层次：void(最深) < surface < raised，用于做空间纵深 ---- */
+  --color-void: #090d16;
+  --color-surface: #0f172a;
+  --color-raised: #141d33;
+
+  /* ---- 描边 ---- */
+  --color-line: #1e293b;
+  --color-line-strong: #334155;
+
+  /* ---- 主色：战术黄 / 暗金 ---- */
+  --color-tactical: #f59e0b;
+  --color-tactical-deep: #d97706;
+
+  /* ---- 文字 ---- */
+  --color-ink: #f8fafc;
+  --color-muted: #94a3b8;
+  --color-dim: #64748b;
+
+  /* ---- 状态 ---- */
+  --color-signal: #22c55e;
+  --color-danger: #ef4444;
+
+  /* ---- 字体 ---- */
+  --font-sans:
+    'Inter', 'Noto Sans SC', system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+}
+
+/* ============================================================================
+ *  基础层
+ * ========================================================================== */
+@layer base {
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background-color: var(--color-void);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    /* 极淡的战术网格底纹：给纯黑背景一点材质感，但绝不抢内容 */
+    background-image:
+      linear-gradient(rgb(148 163 184 / 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(148 163 184 / 0.045) 1px, transparent 1px);
+    background-size: 44px 44px;
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background-color: rgb(245 158 11 / 0.28);
+    color: #fff;
+  }
+
+  /* 统一滚动条，避免浏览器默认亮色滚动条破坏暗色整体感 */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-void);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border-radius: 9999px;
+    border: 2px solid var(--color-void);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-dim);
+  }
+
+  /* 键盘可达性：只在键盘导航时显示焦点环，鼠标点击不显示 */
+  :focus-visible {
+    outline: 2px solid var(--color-tactical);
+    outline-offset: 2px;
+  }
+
+  /* 尊重用户的减少动效偏好 */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ============================================================================
+ *  组件层：几个复用度高的自定义样式
+ * ========================================================================== */
+@layer components {
+  /* 斜切双角 —— 硬核战术风的标志性细节，比纯圆角更有"装备面板"质感 */
+  .clip-tactical {
+    clip-path: polygon(
+      12px 0,
+      100% 0,
+      100% calc(100% - 12px),
+      calc(100% - 12px) 100%,
+      0 100%,
+      0 12px
+    );
+  }
+
+  /* 加载骨架 */
+  .skeleton {
+    background: linear-gradient(90deg, #141d33 25%, #1e293b 37%, #141d33 63%);
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+
+  /* 隐藏横向滚动条但保留滚动能力（分类 Pills 在窄屏使用） */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================================================================
+ *  动效
+ * ========================================================================== */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* 复制成功时按钮的轻微回弹，给出"操作被接收"的触感 */
+@keyframes copy-pop {
+  0% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.055);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.animate-copy-pop {
+  animation: copy-pop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 卡片入场：轻微上浮，避免整页一次性"砸"出来 */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise-in {
+  animation: rise-in 0.34s ease-out both;
+}
+
+/* 战术黄呼吸光晕，用于"发布方案"这类主行动点 */
+@keyframes tactical-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(245 158 11 / 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(245 158 11 / 0);
+  }
+}
+.animate-tactical-pulse {
+  animation: tactical-pulse 2.4s ease-out infinite;
+}

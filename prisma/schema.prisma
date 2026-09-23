@@ -1,0 +1,154 @@
+// ============================================================================
+//  暗区突围 · 改枪码分享站  ——  Prisma ORM 模型
+//  对应 db/01_schema.sql。数据库结构以 SQL 脚本为唯一真源（source of truth），
+//  本文件仅作类型映射，因此迁移统一使用 `prisma db pull` / SQL 脚本，
+//  不要用 `prisma migrate dev` 反向生成 DDL，避免与 RLS / 触发器 / 生成列冲突。
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // Supabase: 使用 Connection Pooling (6543)
+  directUrl = env("DIRECT_URL")     // Supabase: 直连端口 (5432)，供 db pull / 迁移使用
+}
+
+// ---------------------------------------------------------------- 枚举
+enum BuildPlatform {
+  mobile
+  pc
+  both
+
+  @@map("build_platform")
+}
+
+enum BuildStatus {
+  draft
+  published
+  hidden
+  removed
+
+  @@map("build_status")
+}
+
+enum UserRole {
+  user
+  moderator
+  admin
+
+  @@map("user_role")
+}
+
+// ---------------------------------------------------------------- 枪械分类字典
+model GunCategory {
+  slug      String   @id
+  nameZh    String   @map("name_zh")
+  sortOrder Int      @default(100) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  guns Gun[]
+
+  @@map("gun_categories")
+}
+
+// ---------------------------------------------------------------- 用户档案
+model Profile {
+  id        String   @id @db.Uuid
+  nickname  String   @default("匿名指挥官")
+  avatarUrl String?  @map("avatar_url")
+  role      UserRole @default(user)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  builds   Build[]
+  comments Comment[]
+  likes    BuildLike[]
+
+  @@map("profiles")
+}
+
+// ---------------------------------------------------------------- 基础枪械
+model Gun {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  nameEn    String?  @map("name_en")
+  slug      String   @unique
+  category  String
+  iconUrl   String?  @map("icon_url")
+  sortOrder Int      @default(100) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  categoryRef GunCategory @relation(fields: [category], references: [slug])
+  builds      Build[]
+
+  @@index([category, sortOrder])
+  @@map("guns")
+}
+
+// ---------------------------------------------------------------- 改枪方案
+model Build {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gunId         String        @map("gun_id") @db.Uuid
+  authorId      String?       @map("author_id") @db.Uuid
+  title         String
+  code          String
+  /// 数据库生成列 md5(code)，由 DB 维护，Prisma 侧只读/忽略
+  codeHash      String?       @map("code_hash") @ignore
+  estimatedCost Decimal       @default(0) @map("estimated_cost") @db.Decimal(12, 0)
+  platform      BuildPlatform @default(both)
+  tags          String[]      @default([])
+  description   String?
+  likesCount    Int           @default(0) @map("likes_count")
+  copiesCount   Int           @default(0) @map("copies_count")
+  commentsCount Int           @default(0) @map("comments_count")
+  status        BuildStatus   @default(published)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime      @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  gun      Gun         @relation(fields: [gunId], references: [id], onDelete: Cascade)
+  author   Profile?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  comments Comment[]
+  likes    BuildLike[]
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([status, likesCount(sort: Desc)])
+  @@index([status, estimatedCost])
+  @@index([gunId, createdAt(sort: Desc)])
+  @@index([gunId, likesCount(sort: Desc)])
+  @@index([gunId, platform, createdAt(sort: Desc)])
+  @@index([authorId, createdAt(sort: Desc)])
+  @@map("builds")
+}
+
+// ---------------------------------------------------------------- 评论
+model Comment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  buildId   String   @map("build_id") @db.Uuid
+  authorId  String?  @map("author_id") @db.Uuid
+  content   String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  build  Build    @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  author Profile? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([buildId, createdAt(sort: Desc)])
+  @@index([authorId])
+  @@map("comments")
+}
+
+// ---------------------------------------------------------------- 点赞关系（幂等）
+model BuildLike {
+  buildId   String   @map("build_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  build Build   @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  user  Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([buildId, userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("build_likes")
+}

@@ -1,0 +1,14 @@
+# Cloudflare Pages 路由规则
+#
+# 本项目用 BrowserRouter（真实 History API），因此 /builds/:id 这类深链
+# 必须回落到 index.html，否则用户刷新页面会拿到 404。
+#
+# 规则：任何未命中静态文件的请求，返回 index.html，状态码 200。
+#   · 用 200 而不是 301/302 —— 后者会让地址栏跳回 "/"，深链就失效了
+#   · Cloudflare Pages 会先匹配静态资源，所以 /assets/* 不受影响
+#
+# 若前后端同域、由 Cloudflare 反代后端，可在下面追加：
+#   /api/*  https://your-backend.example.com/api/:splat  200
+# 但更推荐前后端分域 + 在后端配置 CORS_ORIGIN。
+
+/*    /index.html   200

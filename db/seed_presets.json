@@ -1,0 +1,118 @@
+{
+  "_comment": "暗区突围 · 改枪码分享站 —— 预设测试数据（JSON Mock）。与 db/04_seed.sql 第 2、3 节同源，供前端在无后端环境下联调使用。改枪码为 DEMO 前缀占位符，长度与游戏内真实码一致（16 位），但不可导入游戏。",
+  "_warning": "builds[].code 必须在联调真实接口前替换为游戏内真实改枪码，否则前端展示的复制结果无法使用。",
+  "_source": "db/04_seed.sql",
+
+  "gun_categories": [
+    { "slug": "assault_rifle", "name_zh": "突击步枪", "sort_order": 10 },
+    { "slug": "smg", "name_zh": "冲锋枪", "sort_order": 20 },
+    { "slug": "dmr", "name_zh": "射手步枪", "sort_order": 30 },
+    { "slug": "sniper_rifle", "name_zh": "狙击枪", "sort_order": 40 },
+    { "slug": "shotgun", "name_zh": "霰弹枪", "sort_order": 50 },
+    { "slug": "pistol", "name_zh": "手枪", "sort_order": 60 }
+  ],
+
+  "guns": [
+    {
+      "name": "AK-74N",
+      "name_en": "AK-74N",
+      "slug": "ak-74n",
+      "category": "assault_rifle",
+      "category_name_zh": "突击步枪",
+      "icon_url": "https://assets.example-anqu.com/guns/ak-74n.webp",
+      "sort_order": 26,
+      "_note": "本次新增：原种子库只有 AK-74M，缺此枪。使用 5.45×39mm 弹药。"
+    },
+    {
+      "name": "FAL",
+      "name_en": "FAL",
+      "slug": "fal",
+      "category": "assault_rifle",
+      "category_name_zh": "突击步枪",
+      "icon_url": "https://assets.example-anqu.com/guns/fal.webp",
+      "sort_order": 27,
+      "_note": "本次新增：原种子库缺失。使用 7.62×51mm 弹药。"
+    },
+    {
+      "name": "MP5",
+      "name_en": "MP5",
+      "slug": "mp5",
+      "category": "smg",
+      "category_name_zh": "冲锋枪",
+      "icon_url": "https://assets.example-anqu.com/guns/mp5.webp",
+      "sort_order": 10,
+      "_note": "种子库已存在，此处仅为满足前端 Mock 的自包含性而重复列出。"
+    },
+    {
+      "name": "Mosin-Nagant",
+      "name_en": "Mosin-Nagant",
+      "slug": "mosin-nagant",
+      "category": "sniper_rifle",
+      "category_name_zh": "狙击枪",
+      "icon_url": "https://assets.example-anqu.com/guns/mosin-nagant.webp",
+      "sort_order": 16,
+      "_note": "本次新增：原种子库缺失。栓动式，使用 7.62×54mmR 弹药。"
+    },
+    {
+      "name": "M4A1",
+      "name_en": "M4A1",
+      "slug": "m4a1",
+      "category": "assault_rifle",
+      "category_name_zh": "突击步枪",
+      "icon_url": "https://assets.example-anqu.com/guns/m4a1.webp",
+      "sort_order": 14,
+      "_note": "种子库已存在，此处仅为满足前端 Mock 的自包含性而重复列出。"
+    }
+  ],
+
+  "builds": [
+    {
+      "id": "44444444-4444-4444-8444-444444444444",
+      "gun_slug": "ak-74n",
+      "title": "【S4开荒】平民极简低后坐AK74N",
+      "code": "DEMOAK74N0000001",
+      "estimated_cost": 32000,
+      "cost_display": "~32,000 柯恩币",
+      "platform": "both",
+      "tags": ["性价比", "新手推荐", "低后坐"],
+      "description": "开荒期低成本起装：轻型握把 + 基础消音器，把垂直后坐压到可控区间。\n建议子弹：5.45×39 PP（穿甲）或 BP（均衡）。\n没有堆任何昂贵配件，造价压在 3.2 万，适合封锁区反复起装。",
+      "source_idea": "改了轻型握把和基础消音，后坐力极好控制，建议配 PP 弹或 BP 弹打封锁区。",
+      "likes_count": 0,
+      "copies_count": 0,
+      "comments_count": 0,
+      "status": "published"
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555555",
+      "gun_slug": "fal",
+      "title": "【满配战神】FAL 绝对火力拉满改法",
+      "code": "DEMOFAL000000002",
+      "estimated_cost": 120000,
+      "cost_display": "~120,000 柯恩币",
+      "platform": "pc",
+      "tags": ["满配", "高后坐高伤害", "军港/电视台"],
+      "description": "端游《无限》满配思路：长枪管 + 长消音 + 50 发大弹匣，中近距离弹雨压制一切。\n建议子弹：7.62×51 M61（穿甲）或 M62（均衡），弹药档次直接决定这把枪的上限。\n后坐偏大且左右抖动明显，建议点射或依托掩体短点射。",
+      "source_idea": "长枪管+长消音+50发大弹匣，近距离弹水融化一切，必须配合 M61/M62 顶级子弹。",
+      "likes_count": 0,
+      "copies_count": 0,
+      "comments_count": 0,
+      "status": "published"
+    },
+    {
+      "id": "66666666-6666-4666-8666-666666666666",
+      "gun_slug": "mp5",
+      "title": "【腰射战神】高性价比 MP5 跑图神器",
+      "code": "DEMOMP5000000003",
+      "estimated_cost": 28000,
+      "cost_display": "~28,000 柯恩币",
+      "platform": "mobile",
+      "tags": ["腰射", "室内战", "跑图"],
+      "description": "手游向腰射流：加装战术手电 + 腰射激光，室内战斗无需开镜，抬手即可压制。\n建议子弹：9×19 7N31（穿甲）或 DumDum 达姆弹（专打腿部）。\n造价 2.8 万，跑图带出去不心疼，适合快速转移与近身遭遇。",
+      "source_idea": "加装战术手电和腰射激光，室内战斗无需开镜，配合 7N31 或 DumDum 达姆弹（打脚）。",
+      "likes_count": 0,
+      "copies_count": 0,
+      "comments_count": 0,
+      "status": "published"
+    }
+  ]
+}
