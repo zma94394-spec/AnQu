@@ -12,8 +12,15 @@ import { env } from './env.js';
  *                   绝对禁止把该 key 或其调用结果下发到前端。
  */
 
-export const supabaseAuth = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
+export const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+  },
+  realtime: {
+    endpoint: '', // 禁用 realtime 模块，避免寻找 WebSocket
+  },
 });
 
 export const supabaseAdmin = env.SUPABASE_SERVICE_ROLE_KEY
