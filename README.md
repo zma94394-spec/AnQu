@@ -17,7 +17,7 @@ anqu/
 │   ├── 01_schema.sql        表结构：扩展、枚举、字典表、主表、约束、索引、触发器
 │   ├── 02_rls.sql           行级安全策略 + 列级授权（Supabase 安全模型）
 │   ├── 03_functions.sql     评分函数、RPC（原子计数）、聚合视图
-│   ├── 04_seed.sql          种子数据：6 大分类 + 59 把枪械 + 6 个改枪方案
+│   ├── 04_seed.sql          种子数据：6 大分类 + 60 把枪械 + 6 个改枪方案
 │   └── seed_presets.json    同源 JSON Mock 数据（前端无后端环境联调用）
 ├── prisma/
 │   └── schema.prisma        ORM 模型（类型映射，非 DDL 真源）

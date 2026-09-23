@@ -53,6 +53,7 @@ interface GunSeed {
 const GUN_SEEDS: GunSeed[] = [
   { id: 'a1000001-0000-4000-8000-000000000001', slug: 'ak-74n', name: 'AK-74N', name_en: 'AK-74N', category: 'assault_rifle' },
   { id: 'a1000002-0000-4000-8000-000000000002', slug: 'fal', name: 'FAL', name_en: 'FAL', category: 'assault_rifle' },
+  { id: 'a1000009-0000-4000-8000-000000000009', slug: 'ace32', name: 'ACE32', name_en: 'ACE32', category: 'assault_rifle' },
   { id: 'a1000003-0000-4000-8000-000000000003', slug: 'm4a1', name: 'M4A1', name_en: 'M4A1', category: 'assault_rifle' },
   { id: 'a1000004-0000-4000-8000-000000000004', slug: 'akm', name: 'AKM', name_en: 'AKM', category: 'assault_rifle' },
   { id: 'a1000005-0000-4000-8000-000000000005', slug: 'mp5', name: 'MP5', name_en: 'MP5', category: 'smg' },
@@ -168,6 +169,20 @@ const BUILD_SEEDS: BuildSeed[] = [
   },
 
   /* ---- EXTRA：仅用于让预览列表密度接近真实，不属于 db/04_seed.sql ---- */
+  {
+    id: '99999999-9999-4999-8999-999999999999',
+    gunSlug: 'ace32',
+    title: '【新枪上手】ACE32 中近通吃稳改方案',
+    code: 'ACE32STABLE07x9Q',
+    estimated_cost: 62000,
+    platform: 'both',
+    tags: ['性价比', '低后坐', '新手推荐'],
+    description:
+      'ACE32 的综合型配置：垂直握把 + 补偿器 + 中倍镜，把后坐压到容易上手的区间。\n建议子弹：7.62×39 BP（穿甲）或 PS（日常）。\n造价 6.2 万，中近距离都能打，适合刚解锁这把枪时先按这套起步。',
+    likes_count: 31,
+    copies_count: 88,
+    ageHours: 6,
+  },
   {
     id: '77777777-7777-4777-8777-777777777777',
     gunSlug: 'mosin-nagant',

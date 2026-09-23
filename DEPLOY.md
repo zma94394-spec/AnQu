@@ -7,6 +7,155 @@
 
 ---
 
+## 0. 本次线上故障的三个根因（已修复）
+
+### ① Render 构建失败 —— 缺少 `prisma generate`
+
+**根因**：`package.json` 没有 `postinstall` 钩子。Render 用 Node 环境部署时，
+流程是 `npm install` → `npm run build` → `npm start`；
+而 `@prisma/client` 只是一个壳，真正的类型与运行时代码要靠
+`prisma generate` 生成到 `node_modules/.prisma/client`。
+
+全新 clone 后没有这一步，`tsc` 直接报：
+
+```
+src/lib/prisma.ts(1,30): error TS2307: Cannot find module '@prisma/client'
+```
+
+**已复现并验证**：删掉 `node_modules/.prisma` 后 `tsc` 立刻失败；
+加上 `postinstall` 后重新生成，编译与构建全部通过。
+
+**修复**：`package.json` 增加 `"postinstall": "prisma generate"`。
+这样 Node 环境与 Docker 环境都能正确构建，不依赖任何手动步骤。
+
+> 配套改动：新增 `.node-version`（锁 Node 20，避免 Render 默认版本漂移）
+> 与 `render.yaml`（声明式配置，把构建命令、健康检查、环境变量键名都纳入版本库）。
+
+### ② CORS 通配符在生产环境被静默降级
+
+**根因**：`src/lib/env.ts` 里有一段"生产环境禁止通配符"的保护逻辑：
+
+```ts
+if (list.includes('*')) {
+  if (isProd) return false;   // ← 降级为"仅同源"
+}
+```
+
+`false` 在 `cors` 包里表示**仅允许同源**。于是 `CORS_ORIGIN=*` 不但没有放开跨域，
+反而把跨域完全关死，前端所有请求被浏览器拦下 —— 表现为 `NETWORK_ERROR`，
+而后端日志一切正常，极难定位。
+
+**修复**：`*` 改为返回 `true`（回显请求的 Origin）。
+
+**这里有一个必须注意的细节**：不能返回字符串 `'*'`。
+因为 `server.ts` 的 cors 配置带了 `credentials: true`，
+而浏览器规范**禁止** `Access-Control-Allow-Origin: *` 与凭证同时生效 ——
+返回字面量 `*` 会被浏览器直接拒绝。回显 Origin 才与 credentials 兼容。
+
+**已运行时验证**（真实起 Express + cors，发带 Origin 的请求）：
+
+```
+GET /ping          Access-Control-Allow-Origin      = https://anqu.vercel.app
+                   Access-Control-Allow-Credentials = true
+OPTIONS 预检        Access-Control-Allow-Headers     = authorization,content-type
+```
+
+### ③ 前端 Supabase 配置有两处错误
+
+| 问题 | 错误值 | 后果 |
+|---|---|---|
+| URL 带了 REST 路径 | `https://xxx.supabase.co/rest/v1/` | supabase-js 会拼成 `.../rest/v1//auth/v1/token` → 404，**登录必然失败** |
+| anon key 被尖括号包裹 | `"<eyJhbGci...>"` | key 多出 2 个字符，Supabase 判为非法令牌 |
+
+**修复**：URL 改为项目根地址 `https://jiwatwrcseiptnowsxti.supabase.co`；
+key 去掉尖括号（208 字符，JWT payload 解析确认 `role=anon`、`ref` 与 URL 一致）。
+
+**已加防护**：`web/scripts/check-env.mts` 现在会校验这两类形状问题 ——
+URL 含 `/rest/v1` 或以斜杠结尾、key 含尖括号或空白字符，都会在构建前拦下。
+占位符正则也从 `<[a-z-]+>` 放宽为 `<[^>]*>`，否则把真实 key 包在尖括号里这种
+最常见的粘贴失误会被漏掉。
+
+---
+
+## 0.5 线上实测诊断（2026-09-23）
+
+直接探测线上服务得到的结果，用于定位「枪械列表拉不到」的真实原因。
+
+### 服务是活的，数据库连接也正常
+
+```
+GET https://anqu.onrender.com/health
+→ 200 {"success":true,"data":{"status":"ok","db":"up","db_latency_ms":508,"env":"production","uptime_s":2087}}
+```
+
+`db: "up"` 说明 Supabase 连接串正确、Prisma Client 可用、进程正常运行。
+
+### 但所有数据接口都是 500
+
+| 端点 | 结果 |
+|---|---|
+| `/health` | **200** |
+| `/api/builds?page=1&page_size=1` | **500** `INTERNAL_ERROR` |
+| `/api/guns` | **500** `INTERNAL_ERROR` |
+| `/api/builds/:id` | **500** `INTERNAL_ERROR` |
+
+### 关键判据：差分测试证明「表根本不存在」
+
+用不存在的枪械 UUID 调 `POST /api/builds`：
+
+```
+期望：400 INVALID_GUN_ID（说明 guns 表存在，只是这个 id 查不到）
+实际：500 INTERNAL_ERROR
+```
+
+`createBuild` 的第一句就是 `prisma.gun.findUnique(...)`，查不到只会返回 `null`
+并抛出 400。既然得到 500，说明**查询本身抛异常了** —— 即 `guns` 表不存在。
+
+结合 `/api/guns` 依赖 `v_category_stats` 视图、`/api/builds` 依赖
+`build_hot_score` 等函数，可以判断：**建库脚本从未成功执行，数据库是空的。**
+
+### 最可能的原因
+
+你给出的执行顺序是 `01 → 02 → 03 → 04`，而 `02_rls.sql` 依赖
+`03_functions.sql` 的 `is_staff()` 等函数（详见第 1 节 ①）。
+若在 **Supabase SQL Editor** 里整段执行，编辑器会把语句包在一个事务中 ——
+`02` 一报错，**整个事务回滚，连 `01` 建的表也一起没了**。
+
+这与「库完全空白」的观测完全吻合。
+
+**正确做法**：用 `bash scripts/deploy_db.sh`，或按
+`01_schema → 03_functions → 02_rls → 04_seed` 逐文件单独执行。
+脚本对每个文件用 `--single-transaction`，失败只回滚该文件，不会牵连已成功的部分。
+
+### CORS 头完全缺失
+
+线上响应里**一个 `access-control-*` 头都没有**，连 `Vary: Origin` 也没有；
+`OPTIONS` 预检返回的是 Express 默认的 `Allow: GET,HEAD`，而不是 cors 包的 204。
+
+说明当前线上运行的构建里 cors 中间件没有生效 —— 无论原因是版本较旧还是配置问题，
+**都需要用本次修复后的代码重新部署**，并在 Render 设置 `CORS_ORIGIN=*`。
+
+### 顺带观察
+
+`db_latency_ms` 在 500~600ms 之间，偏高。原因是 Render 实例与 Supabase 项目
+不在同一区域。若后续体感慢，优先考虑把两者放到同一区域，而不是先优化 SQL。
+
+### 已加的可观测性改进
+
+原来的 `/health` 只跑 `SELECT 1`，**空库也会返回 ok** —— 这正是本次排查绕远路的原因。
+现已扩展：
+
+- **`/health`**（存活）：DB 连得上就 200，但响应体新增 `schema` 字段，
+  架构缺失时返回 `"status":"schema_missing"` 并列出 `missing_relations`。
+  刻意**不**因此返回 5xx —— 存活探针失败会触发平台重启甚至回滚部署，
+  反而让排查更难。
+- **`/ready`**（就绪）：架构不完整直接 503 `SCHEMA_NOT_READY`，
+  并在 message 里写明正确的执行顺序。适合配给平台的「就绪探针」。
+
+已在 PGlite 上验证该查询：空库报全部 8 个关系缺失，建库后报 ok。
+
+---
+
 ## 1. 你提供的参数里需要修正的 4 处
 
 ### ① SQL 执行顺序错误（会直接报错，部署卡死）
@@ -50,16 +199,16 @@ SUPABASE_ANON_KEY: z.string().min(1, 'SUPABASE_ANON_KEY 必填'),
 该变量有默认值 `http://localhost:5173`。生产环境不覆盖它，
 浏览器会因为跨域被拦，前端所有请求失败。
 
-另外代码里有这条保护：
+**当前行为**（已按第 0 节 ② 修复）：`CORS_ORIGIN=*` 表示**接受任意来源**，
+后端会回显请求的 Origin。也可以填逗号分隔的域名列表来收紧。
 
-```ts
-if (list.includes('*')) {
-  if (isProd) return false;   // 生产环境降级为"仅同源"
-}
-```
-
-也就是说**生产环境写 `CORS_ORIGIN=*` 不会放开跨域，反而会收紧到仅同源**，
-比不配更糟。请显式列出前端域名。
+⚠️ 注意别踩这两个坑：
+- **设成空串** —— 空白名单等于谁都不放行。代码里已按"未配置"处理并告警，
+  但仍不建议留空。
+- **误以为 `*` 是"不安全"** —— 本 API 的鉴权完全依赖 `Authorization: Bearer`
+  （不使用 Cookie），恶意站点既读不到本域 localStorage，也无法凭 CORS 取得用户身份。
+  开放 CORS 只是允许任意站点调用公开接口，不构成越权。
+  当然，若能确定前端域名，列出白名单仍然更好。
 
 ### ④ `SUPABASE_JWT_SECRET` 是多余的
 
@@ -292,27 +441,33 @@ VITE_USE_MOCK           = false
 API=https://你的后端域名
 WEB=https://你的前端域名
 
-# 1. 存活
-curl -sS -o /dev/null -w "health  %{http_code}\n" "$API/health"
+# 1. 存活 + 架构状态（schema 必须是 ok）
+curl -sS "$API/health"; echo
 
-# 2. 枪械库（应返回 success:true 且 guns 非空）
+# 2. 就绪探针：架构不完整会返回 503 并列出缺失对象
+curl -sS -o /dev/null -w "ready %{http_code}\n" "$API/ready"
+
+# 3. 枪械库（应返回 success:true 且 guns 非空）
 curl -sS "$API/api/guns" | head -c 300; echo
 
-# 3. 方案列表（应返回分页信封）
+# 4. 方案列表（应返回分页信封）
 curl -sS "$API/api/builds?page=1&page_size=2" | head -c 300; echo
 
-# 4. CORS 预检：把 Origin 换成你的前端域名，应回显 Access-Control-Allow-Origin
+# 5. CORS 预检：把 Origin 换成你的前端域名，应回显 Access-Control-Allow-Origin
 curl -sS -i -X OPTIONS "$API/api/builds" \
   -H "Origin: $WEB" \
   -H "Access-Control-Request-Method: POST" | grep -i "access-control"
 
-# 5. 深链回落：必须 200 且返回 HTML，不能是 404
+# 6. 深链回落：必须 200 且返回 HTML，不能是 404
 curl -sS -o /dev/null -w "deeplink %{http_code}\n" "$WEB/builds/44444444-4444-4444-8444-444444444444"
 
-# 6. 未登录发评论应被拒（401 AUTH_REQUIRED），说明鉴权生效
+# 7. 未登录发评论应被拒（401 AUTH_REQUIRED），说明鉴权生效
 curl -sS -X POST "$API/api/builds/44444444-4444-4444-8444-444444444444/comments" \
   -H 'Content-Type: application/json' -d '{"content":"smoke"}'; echo
 ```
+
+**`/health` 返回 `"schema":"missing"` 时不要继续往下测** ——
+后面所有数据接口必然 500，先去把建库脚本跑对。
 
 浏览器侧再确认三件事：卡片上的「复制改枪码」变绿、点赞数字变化、
 右上角没有 `MOCK` 标记。
@@ -323,6 +478,9 @@ curl -sS -X POST "$API/api/builds/44444444-4444-4444-8444-444444444444/comments"
 
 | 现象 | 原因 | 处理 |
 |---|---|---|
+| `/health` 返回 `"schema":"missing"`，所有 `/api/*` 都 500 | 建库脚本未执行或整体回滚 | 按 `01 → 03 → 02 → 04` 重跑；Supabase SQL Editor 会整段包事务，一错全回滚，建议改用 `deploy_db.sh` |
+| `POST /api/builds` 用不存在的枪械返回 500 而非 400 | `guns` 表不存在（同上） | 同上 |
+| 线上响应完全没有 `access-control-*` 头 | 部署版本较旧或 `CORS_ORIGIN` 未生效 | 重新部署并在 Render 设 `CORS_ORIGIN=*` |
 | 进程启动即退出，日志 `[env] 环境变量校验失败` | 缺 `SUPABASE_ANON_KEY` 或 `DATABASE_URL` | 补全后重启 |
 | 启动报 `Error loading shared library libssl.so` | Alpine 镜像未装 openssl | 用本仓库 `Dockerfile`（已装） |
 | 报 `function public.is_staff() does not exist` | SQL 执行顺序错了 | 按 `01 → 03 → 02 → 04` 重跑 |

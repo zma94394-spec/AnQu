@@ -253,25 +253,66 @@ npm run check:mocks
 
 ---
 
-## 5. 设计令牌
+## 5. 设计语言：Apple HIG
 
-定义在 `src/index.css` 的 `@theme` 中，Tailwind v4 会自动生成对应工具类
-（`--color-tactical` → `bg-tactical` / `text-tactical` / `border-tactical`）。
+参考苹果官网与 HIG，从原来的「硬核战术暗黑」整体转为 Apple 风格。
+三条原则贯穿全站：
+
+1. **用不透明度分层，而不是用不同色相**。Apple 深色模式里「次要文字」不是另一种
+   灰色，而是同一个白色降透明度 —— 这样在任意背景（含玻璃层）上都和谐。
+2. **材质（Material）而非纯色块**。面板 = 半透明白 + 背景模糊 + 1px 微亮描边，
+   让背后内容透出来形成纵深。
+3. **层级靠留白与字重，不靠边框和线条**。标题大而重、正文小而疏。
+
+### 5.1 令牌（`src/index.css` 的 `@theme`）
 
 | 令牌 | 值 | 用途 |
 |---|---|---|
-| `void` / `surface` / `raised` | `#090d16` / `#0f172a` / `#141d33` | 三级底色，制造空间纵深 |
-| `line` / `line-strong` | `#1e293b` / `#334155` | 描边 |
-| `tactical` / `tactical-deep` | `#f59e0b` / `#d97706` | 战术黄 / 暗金主色 |
-| `ink` / `muted` / `dim` | `#f8fafc` / `#94a3b8` / `#64748b` | 文字三级 |
-| `signal` / `danger` | `#22c55e` / `#ef4444` | 已复制 / 错误 |
+| `base` / `base-2` | `#000000` / `#0a0a0c` | 底色，Apple 深色模式基准 |
+| `glass` / `glass-2` / `glass-3` | 白 8% / 12% / 18% | 三级玻璃层 |
+| `hairline` / `hairline-2` | 白 15% / 30% | 1px 微亮描边 |
+| `ink` / `ink-2` / `ink-3` | 白 96% / 64% / 40% | 文字三级 |
+| `accent` / `accent-2` | `#ff9f0a` / `#ffb340` | 品牌战术黄（取 systemOrange 色相） |
+| `signal` / `danger` | `#30d158` / `#ff453a` | 已复制 / 错误（Apple systemGreen/Red） |
 
-自定义样式类：`.clip-tactical`（斜切双角）、`.skeleton`（骨架微光）、
-`.no-scrollbar`、`.animate-copy-pop`、`.animate-rise-in`、`.animate-tactical-pulse`。
+圆角：`rounded-card` 22px（卡片）、`rounded-panel` 18px（面板）、
+`rounded-control` 14px（控件）、`rounded-chip` 全圆（按钮 / 标签）。
+
+> squircle 的说明：真正的连续曲率需要 SVG 遮罩或 CSS `corner-shape`
+> （尚未广泛支持），这里用大 `border-radius` 作为实用近似。
+
+字体：`-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+"PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif`。
+正文 15px / 行高 1.6，标题收紧字距（`-0.022em`）。
+
+### 5.2 材质与动效类
+
+| 类名 | 作用 |
+|---|---|
+| `.glass` | 标准玻璃：`blur(20px) saturate(180%)` + 白 8% + 1px 白 15% 描边 |
+| `.glass-strong` | 弹窗用，更实（`blur(30px)`，底色 `rgb(30 30 34 / 0.72)`） |
+| `.glass-thin` | 顶部导航用，更薄，避免遮挡内容 |
+| `.elevate` / `.elevate-hover` | `0 10px 30px rgba(0,0,0,.12)` + 悬浮抬升 |
+| `.press` | 按下时 `scale(0.975)`，模拟 iOS 触感反馈 |
+| `.animate-modal-in` / `.animate-dropdown-in` | 弹窗缩放淡入 / 下拉展开 |
+
+统一缓动：`cubic-bezier(0.25, 1, 0.5, 1)`（Apple 的过渡曲线，起步快收尾缓）。
+`backdrop-filter` 全部带 `-webkit-` 前缀 —— 否则 Safari 上完全没有模糊效果。
+
+### 5.3 Bento Grid 与组件
+
+- **主页顶部**是 Bento 概览区：左侧大卡片突出「推荐方案」（独立取热度榜首，
+  不受当前筛选影响，否则一筛选「推荐」就跟着变，失去编辑精选的意味），
+  右侧三张小卡片放统计与分类（方案总数 / 枪械库 / 最热分类）。
+- **卡片**全部 `rounded-card` + `.elevate-hover`，悬浮上移 3px。
+- **弹窗**：高斯模糊蒙版 + 中心浮起，表单控件改为 iOS 风格
+  （内嵌填充而非描边，聚焦时描边才亮起）。
+- **枪械选择器下拉**：柔和缩放淡入，无匹配时给出优雅空状态
+  （说明"下一步该做什么"，而不是只说没有）。
+- 保留 `⌘K` / `Ctrl+K` 唤起搜索。
 
 已处理 `prefers-reduced-motion`，对减少动效的用户关闭全部动画。
 
----
 
 ## 6. 未接入项（后端已就绪，前端待做）
 

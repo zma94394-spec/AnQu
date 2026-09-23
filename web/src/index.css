@@ -1,40 +1,60 @@
 @import 'tailwindcss';
 
 /* ============================================================================
- *  设计令牌 —— 硬核战术暗黑风
+ *  设计令牌 —— Apple HIG / 苹果官网风格
  *
- *  Tailwind v4 的 @theme 会把每个 --color-* / --font-* 编译成对应工具类：
- *    --color-void       ->  bg-void / text-void / border-void
- *    --color-tactical   ->  bg-tactical / text-tactical ...
- *  因此组件里只写语义化类名，不散落十六进制色值。
+ *  三条来自 Apple 设计语言的核心原则，贯穿本文件：
+ *
+ *   1. **用不透明度分层，而不是用不同色相**。
+ *      Apple 深色模式里"次要文字"不是灰色的另一种颜色，而是同一个白色降透明度。
+ *      这样在任意背景（含玻璃层）上都能保持和谐。
+ *
+ *   2. **材质（Material）而非纯色块**。
+ *      面板是半透明白 + 背景模糊 + 1px 微亮描边，让背后内容透出来形成纵深。
+ *
+ *   3. **层级靠留白与字重，不靠边框和线条**。
+ *      标题大而重、正文小而疏，中间用大间距分隔。
+ *
+ *  Tailwind v4 的 @theme 会把每个 --color-* / --radius-* 编译成对应工具类：
+ *    --color-glass     ->  bg-glass / border-glass
+ *    --radius-card     ->  rounded-card
  * ========================================================================== */
 @theme {
-  /* ---- 底色层次：void(最深) < surface < raised，用于做空间纵深 ---- */
-  --color-void: #090d16;
-  --color-surface: #0f172a;
-  --color-raised: #141d33;
+  /* ---- 底色：纯黑起手，Apple 深色模式的基准 ---- */
+  --color-base: #000000;
+  --color-base-2: #0a0a0c;
 
-  /* ---- 描边 ---- */
-  --color-line: #1e293b;
-  --color-line-strong: #334155;
+  /* ---- 玻璃层：半透明白，叠在深色底上形成材质 ---- */
+  --color-glass: rgb(255 255 255 / 0.08);
+  --color-glass-2: rgb(255 255 255 / 0.12);
+  --color-glass-3: rgb(255 255 255 / 0.18);
 
-  /* ---- 主色：战术黄 / 暗金 ---- */
-  --color-tactical: #f59e0b;
-  --color-tactical-deep: #d97706;
+  /* ---- 描边：Apple 的 hairline，1px 且极低对比 ---- */
+  --color-hairline: rgb(255 255 255 / 0.15);
+  --color-hairline-2: rgb(255 255 255 / 0.3);
 
-  /* ---- 文字 ---- */
-  --color-ink: #f8fafc;
-  --color-muted: #94a3b8;
-  --color-dim: #64748b;
+  /* ---- 文字：同一白色的三级不透明度 ---- */
+  --color-ink: rgb(255 255 255 / 0.96);
+  --color-ink-2: rgb(255 255 255 / 0.64);
+  --color-ink-3: rgb(255 255 255 / 0.4);
 
-  /* ---- 状态 ---- */
-  --color-signal: #22c55e;
-  --color-danger: #ef4444;
+  /* ---- 强调色：保留品牌战术黄，取 Apple 深色模式 systemOrange 的色相 ---- */
+  --color-accent: #ff9f0a;
+  --color-accent-2: #ffb340;
+  --color-signal: #30d158;
+  --color-danger: #ff453a;
 
-  /* ---- 字体 ---- */
+  /* ---- 圆角：苹果的大曲率（squircle 的实用近似）---- */
+  --radius-card: 22px;
+  --radius-panel: 18px;
+  --radius-control: 14px;
+  --radius-chip: 999px;
+
+  /* ---- 字体：Apple 系统字体栈 ---- */
   --font-sans:
-    'Inter', 'Noto Sans SC', system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'PingFang SC',
+    'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* ============================================================================
@@ -44,52 +64,70 @@
   html {
     color-scheme: dark;
     scroll-behavior: smooth;
+    /* Apple 在 macOS 上默认开启，显式打开让字形更细腻 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
     margin: 0;
     min-height: 100dvh;
-    background-color: var(--color-void);
+    background-color: var(--color-base);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-    /* 极淡的战术网格底纹：给纯黑背景一点材质感，但绝不抢内容 */
+    /* 字号与行高：Apple 正文偏大、行高偏松，换来呼吸感 */
+    font-size: 15px;
+    line-height: 1.6;
+    letter-spacing: -0.01em;
+
+    /* 「柔和的模糊高光」：两团大半径径向渐变，
+       像有光源在页面后方，避免纯黑背景显得死板 */
     background-image:
-      linear-gradient(rgb(148 163 184 / 0.045) 1px, transparent 1px),
-      linear-gradient(90deg, rgb(148 163 184 / 0.045) 1px, transparent 1px);
-    background-size: 44px 44px;
+      radial-gradient(900px 620px at 10% -10%, rgb(255 159 10 / 0.1), transparent 62%),
+      radial-gradient(820px 520px at 92% 2%, rgb(120 160 255 / 0.09), transparent 64%),
+      radial-gradient(700px 500px at 50% 110%, rgb(255 159 10 / 0.05), transparent 60%);
     background-attachment: fixed;
   }
 
+  /* 标题：大字号 + 高字重 + 收紧字距，这是苹果标题的典型特征 */
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+
   ::selection {
-    background-color: rgb(245 158 11 / 0.28);
+    background-color: rgb(255 159 10 / 0.3);
     color: #fff;
   }
 
-  /* 统一滚动条，避免浏览器默认亮色滚动条破坏暗色整体感 */
+  /* 滚动条：默认亮色滚动条会破坏整体材质感 */
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
   }
   ::-webkit-scrollbar-track {
-    background: var(--color-void);
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--color-line-strong);
+    background: rgb(255 255 255 / 0.14);
     border-radius: 9999px;
-    border: 2px solid var(--color-void);
+    border: 3px solid transparent;
+    background-clip: content-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-dim);
+    background: rgb(255 255 255 / 0.26);
+    background-clip: content-box;
   }
 
-  /* 键盘可达性：只在键盘导航时显示焦点环，鼠标点击不显示 */
+  /* 焦点环：只在键盘导航时出现，用强调色而非浏览器默认蓝 */
   :focus-visible {
-    outline: 2px solid var(--color-tactical);
-    outline-offset: 2px;
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+    border-radius: 6px;
   }
 
-  /* 尊重用户的减少动效偏好 */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -103,24 +141,72 @@
 }
 
 /* ============================================================================
- *  组件层：几个复用度高的自定义样式
+ *  组件层
  * ========================================================================== */
 @layer components {
-  /* 斜切双角 —— 硬核战术风的标志性细节，比纯圆角更有"装备面板"质感 */
-  .clip-tactical {
-    clip-path: polygon(
-      12px 0,
-      100% 0,
-      100% calc(100% - 12px),
-      calc(100% - 12px) 100%,
-      0 100%,
-      0 12px
-    );
+  /* ------------------------------------------------------------ 材质 */
+
+  /**
+   * 标准玻璃面板。
+   *
+   * `backdrop-filter` 必须带 `-webkit-` 前缀，否则 Safari 上完全没有模糊效果 ——
+   * 而 Safari 恰恰是这个设计语言最需要正确渲染的浏览器。
+   */
+  .glass {
+    background-color: rgb(255 255 255 / 0.08);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgb(255 255 255 / 0.15);
   }
+
+  /** 更实的玻璃：用于弹窗等需要与背景拉开距离的层 */
+  .glass-strong {
+    background-color: rgb(30 30 34 / 0.72);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid rgb(255 255 255 / 0.18);
+  }
+
+  /** 更薄的玻璃：用于顶部导航栏，避免遮挡内容过多 */
+  .glass-thin {
+    background-color: rgb(10 10 12 / 0.68);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border-bottom: 1px solid rgb(255 255 255 / 0.12);
+  }
+
+  /* ------------------------------------------------------------ 层级与动效 */
+
+  /**
+   * 悬浮层级。Apple 的过渡曲线是 `cubic-bezier(0.25, 1, 0.5, 1)` ——
+   * 起步快、收尾缓，比 `ease` 更"跟手"。
+   */
+  .elevate {
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.12);
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  .elevate-hover:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 48px rgb(0 0 0 / 0.34);
+  }
+
+  /** 按下时的轻微缩放，模拟 iOS 的触感反馈 */
+  .press:active {
+    transform: scale(0.975);
+    transition: transform 0.12s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  /* ------------------------------------------------------------ 其它 */
 
   /* 加载骨架 */
   .skeleton {
-    background: linear-gradient(90deg, #141d33 25%, #1e293b 37%, #141d33 63%);
+    background: linear-gradient(
+      90deg,
+      rgb(255 255 255 / 0.06) 25%,
+      rgb(255 255 255 / 0.13) 37%,
+      rgb(255 255 255 / 0.06) 63%
+    );
     background-size: 400% 100%;
     animation: skeleton-shimmer 1.4s ease-in-out infinite;
   }
@@ -147,13 +233,13 @@
   }
 }
 
-/* 复制成功时按钮的轻微回弹，给出"操作被接收"的触感 */
+/* 复制成功时的轻微回弹，给出"操作被接收"的触感 */
 @keyframes copy-pop {
   0% {
     transform: scale(1);
   }
   42% {
-    transform: scale(1.055);
+    transform: scale(1.06);
   }
   100% {
     transform: scale(1);
@@ -163,11 +249,11 @@
   animation: copy-pop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* 卡片入场：轻微上浮，避免整页一次性"砸"出来 */
+/* 卡片入场：轻微上浮 + 淡入 */
 @keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -175,19 +261,63 @@
   }
 }
 .animate-rise-in {
-  animation: rise-in 0.34s ease-out both;
+  animation: rise-in 0.4s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
-/* 战术黄呼吸光晕，用于"发布方案"这类主行动点 */
-@keyframes tactical-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgb(245 158 11 / 0.35);
+/* 下拉面板展开：从上方轻微缩放淡入，比直接出现更有"材质生长"的感觉 */
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
   }
-  50% {
-    box-shadow: 0 0 0 6px rgb(245 158 11 / 0);
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
-.animate-tactical-pulse {
-  animation: tactical-pulse 2.4s ease-out infinite;
+.animate-dropdown-in {
+  animation: dropdown-in 0.22s cubic-bezier(0.25, 1, 0.5, 1) both;
+  transform-origin: top center;
+}
+
+/* 弹窗：从中心轻微放大淡入 */
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-modal-in {
+  animation: modal-in 0.32s cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+/* 遮罩淡入 */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.24s ease-out both;
+}
+
+/* 强调色的柔和呼吸光晕，用于主行动点 */
+@keyframes accent-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(255 159 10 / 0.34);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgb(255 159 10 / 0);
+  }
+}
+.animate-accent-glow {
+  animation: accent-glow 2.6s ease-out infinite;
 }

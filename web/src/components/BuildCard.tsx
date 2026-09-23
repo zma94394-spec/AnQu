@@ -33,6 +33,8 @@ const PLATFORM_ICON: Record<Platform, LucideIcon> = {
   both: LayoutGrid,
 };
 
+const EASE = 'ease-[cubic-bezier(0.25,1,0.5,1)]';
+
 export function BuildCard({ build, onPatch, index = 0 }: BuildCardProps) {
   const copy = useCopyCode({
     buildId: build.id,
@@ -52,40 +54,24 @@ export function BuildCard({ build, onPatch, index = 0 }: BuildCardProps) {
 
   return (
     <article
-      style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
+      style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}
       className={cn(
-        'group animate-rise-in relative flex h-full flex-col',
-        'clip-tactical border border-line bg-surface/70 backdrop-blur-sm',
-        'transition-all duration-200',
-        'hover:border-tactical/45 hover:bg-surface hover:shadow-[0_10px_36px_-14px_rgba(245,158,11,0.4)]',
+        'group animate-rise-in elevate elevate-hover relative flex h-full flex-col',
+        'rounded-card bg-glass p-5',
+        'border border-hairline',
+        'hover:border-hairline-2 hover:bg-glass-2',
       )}
     >
-      {/* 左侧战术色装饰条 */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-tactical via-tactical/40 to-transparent"
-      />
-
       {/* ------------------------------------------------ 头部 */}
-      <div className="flex items-start justify-between gap-3 px-4 pt-4">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           {/* 枪械名称 badge */}
-          <span
-            className={cn(
-              'rounded border border-tactical/45 bg-tactical/12 px-2 py-0.5',
-              'font-mono text-xs font-bold tracking-wide text-tactical',
-            )}
-          >
+          <span className="rounded-[9px] bg-accent/16 px-2.5 py-1 font-mono text-[13px] font-bold tracking-tight text-accent">
             {build.gun.name}
           </span>
 
           {/* 适用平台 */}
-          <span
-            className={cn(
-              'flex items-center gap-1 rounded border border-line bg-raised/80 px-1.5 py-0.5',
-              'text-[10px] font-semibold text-muted',
-            )}
-          >
+          <span className="flex items-center gap-1 rounded-[9px] bg-glass-2 px-2 py-1 text-[11px] font-medium text-ink-2">
             <PlatformIcon className="h-3 w-3" aria-hidden="true" />
             {PLATFORM_LABEL[build.platform] ?? build.platform}
           </span>
@@ -93,34 +79,37 @@ export function BuildCard({ build, onPatch, index = 0 }: BuildCardProps) {
 
         {/* 预估造价 */}
         <div className="shrink-0 text-right">
-          <div className="font-mono text-sm font-bold text-tactical">
+          <div className="font-mono text-[15px] font-semibold tracking-tight text-accent">
             ~{formatCoins(build.estimated_cost)}
           </div>
-          <div className="mt-0.5 text-[10px] text-dim">预估造价</div>
+          <div className="mt-0.5 text-[10px] text-ink-3">预估造价</div>
         </div>
       </div>
 
       {/* ------------------------------------------------ 标题与说明 */}
-      <h3 className="px-4 pt-3 text-[15px] font-bold leading-snug">
+      <h3 className="mt-3.5 text-[17px] font-semibold leading-snug tracking-[-0.022em]">
         <Link
           to={detailPath}
-          className="text-ink transition-colors hover:text-tactical focus-visible:text-tactical"
+          className={cn(
+            'text-ink transition-colors duration-300',
+            `${EASE} hover:text-accent`,
+          )}
         >
           {build.title}
         </Link>
       </h3>
 
       {build.description && (
-        <p className="line-clamp-2 whitespace-pre-line px-4 pt-1.5 text-xs leading-relaxed text-muted">
+        <p className="mt-2 line-clamp-2 whitespace-pre-line text-[13px] leading-relaxed text-ink-2">
           {build.description}
         </p>
       )}
 
       {/* ------------------------------------------------ 改枪码核心交互区 */}
-      <div className="px-4 pt-3.5">
-        <div className="flex items-stretch gap-2 rounded-lg border border-line bg-void/75 p-2">
+      <div className="mt-4">
+        <div className="flex items-stretch gap-2 rounded-panel bg-black/35 p-2.5">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-dim">
+            <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-3">
               <Terminal className="h-3 w-3" aria-hidden="true" />
               改枪码
               <span className="ml-auto font-mono normal-case tracking-normal">
@@ -131,7 +120,7 @@ export function BuildCard({ build, onPatch, index = 0 }: BuildCardProps) {
             {/* select-all：即使复制按钮不可用，用户也能一次点选整串码手动复制 */}
             <code
               title={build.code}
-              className="mt-1 block select-all truncate font-mono text-[13px] leading-5 text-ink"
+              className="mt-1.5 block select-all truncate font-mono text-[13px] leading-5 text-ink"
             >
               {build.code}
             </code>
@@ -141,11 +130,13 @@ export function BuildCard({ build, onPatch, index = 0 }: BuildCardProps) {
             type="button"
             onClick={copy.copy}
             className={cn(
-              'flex shrink-0 flex-col items-center justify-center gap-1 rounded-md px-3 py-2',
-              'text-xs font-bold transition-colors duration-150',
-              copy.state === 'copied' && 'animate-copy-pop bg-signal text-void',
-              copy.state === 'failed' && 'bg-danger text-ink',
-              copy.state === 'idle' && 'bg-tactical text-void hover:bg-tactical-deep hover:text-ink',
+              'press flex shrink-0 flex-col items-center justify-center gap-1 rounded-control px-3.5 py-2.5',
+              'text-[12px] font-semibold',
+              `transition-all duration-300 ${EASE}`,
+              copy.state === 'copied' && 'animate-copy-pop bg-signal text-black',
+              copy.state === 'failed' && 'bg-danger text-white',
+              copy.state === 'idle' &&
+                'bg-accent text-black hover:bg-accent-2 hover:shadow-[0_6px_20px_rgb(255_159_10_/_0.4)]',
             )}
           >
             {copy.state === 'copied' ? (
@@ -168,14 +159,13 @@ export function BuildCard({ build, onPatch, index = 0 }: BuildCardProps) {
 
       {/* ------------------------------------------------ 标签 */}
       {build.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-4 pt-3">
+        <div className="mt-3.5 flex flex-wrap gap-1.5">
           {build.tags.map((tag) => (
             <span
               key={tag}
               className={cn(
-                'rounded-full border border-line bg-raised/60 px-2 py-0.5',
-                'text-[11px] font-medium text-muted transition-colors',
-                'hover:border-tactical/40 hover:text-tactical',
+                'rounded-chip bg-glass px-2.5 py-1 text-[11px] font-medium text-ink-2',
+                `transition-colors duration-300 ${EASE} hover:bg-glass-2 hover:text-ink`,
               )}
             >
               #{tag}
@@ -185,8 +175,11 @@ export function BuildCard({ build, onPatch, index = 0 }: BuildCardProps) {
       )}
 
       {/* ------------------------------------------------ 底部元信息 */}
-      <div className="mt-auto flex items-center justify-between gap-3 border-t border-line/70 px-4 py-3">
-        <div className="flex items-center gap-1">
+      {/* 撑开剩余空间：保证底部信息栏始终贴底，且与上方标签至少留 20px */}
+      <div className="min-h-5 flex-1" aria-hidden="true" />
+
+      <div className="flex items-center justify-between gap-3 border-t border-hairline pt-4">
+        <div className="flex items-center gap-0.5">
           {/* 点赞 */}
           <button
             type="button"
@@ -195,13 +188,18 @@ export function BuildCard({ build, onPatch, index = 0 }: BuildCardProps) {
             aria-pressed={like.liked}
             title={like.failed ? '点赞失败，请稍后重试' : '点赞'}
             className={cn(
-              'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold',
-              'transition-colors duration-150 disabled:cursor-wait disabled:opacity-60',
-              like.liked ? 'text-danger' : 'text-muted hover:bg-raised hover:text-danger',
+              'press flex items-center gap-1.5 rounded-[10px] px-2.5 py-1.5',
+              'text-[12px] font-medium',
+              `transition-colors duration-300 ${EASE}`,
+              'disabled:cursor-wait disabled:opacity-60',
+              like.liked ? 'text-danger' : 'text-ink-2 hover:bg-glass hover:text-danger',
             )}
           >
             <Heart
-              className={cn('h-4 w-4 transition-transform', like.liked && 'scale-110 fill-current')}
+              className={cn(
+                'h-4 w-4 transition-transform duration-300',
+                like.liked && 'scale-110 fill-current',
+              )}
               aria-hidden="true"
             />
             <span className="font-mono">{formatCount(build.likes_count)}</span>
@@ -209,7 +207,7 @@ export function BuildCard({ build, onPatch, index = 0 }: BuildCardProps) {
 
           {/* 复制次数（只读展示） */}
           <span
-            className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-muted"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium text-ink-2"
             title="改枪码被复制的次数"
           >
             <Copy className="h-3.5 w-3.5" aria-hidden="true" />
@@ -219,7 +217,11 @@ export function BuildCard({ build, onPatch, index = 0 }: BuildCardProps) {
           {/* 评论数 —— 点击进入详情页评论区 */}
           <Link
             to={detailPath}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-muted transition-colors hover:bg-raised hover:text-ink"
+            className={cn(
+              'press flex items-center gap-1.5 rounded-[10px] px-2.5 py-1.5',
+              'text-[12px] font-medium text-ink-2',
+              `transition-colors duration-300 ${EASE} hover:bg-glass hover:text-ink`,
+            )}
             title="查看评论"
           >
             <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
@@ -227,7 +229,7 @@ export function BuildCard({ build, onPatch, index = 0 }: BuildCardProps) {
           </Link>
         </div>
 
-        <span className="flex shrink-0 items-center gap-1 text-[11px] text-dim">
+        <span className="flex shrink-0 items-center gap-1 text-[11px] text-ink-3">
           <Clock className="h-3 w-3" aria-hidden="true" />
           {formatRelativeTime(build.created_at)}
         </span>

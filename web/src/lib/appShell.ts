@@ -31,6 +31,12 @@ export interface AppShellValue {
   dataVersion: number;
   notify: (notice: Notice) => void;
   openPublish: () => void;
+  /**
+   * 打开登录弹窗。
+   * 暴露给评论区使用：未登录时应当直接给出"登录后发表评论"的入口，
+   * 而不是让用户填完再被 401 打回来。
+   */
+  openAuth: () => void;
 }
 
 export const AppShellContext = createContext<AppShellValue | null>(null);

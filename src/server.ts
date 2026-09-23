@@ -54,16 +54,77 @@ app.use((req, res, next) => {
 });
 
 /* ---------------------------------------------------------------- 健康检查 */
+
+/**
+ * 建库脚本应当创建的核心关系（表与视图）。
+ *
+ * 为什么健康检查要查这个：原来的 `/health` 只跑 `SELECT 1`，
+ * 那只能证明"连得上数据库"—— **一个完全空白的库同样返回 ok**。
+ * 线上就出现过「/health 200 一切正常，但所有业务接口 500」的情况，
+ * 排查时只能逐个接口试探，绕了一大圈。
+ */
+const REQUIRED_RELATIONS = [
+  'gun_categories',
+  'guns',
+  'builds',
+  'comments',
+  'build_likes',
+  'profiles',
+  'v_builds_feed',
+  'v_category_stats',
+] as const;
+
+interface SchemaStatus {
+  ok: boolean;
+  missing: string[];
+}
+
+async function checkSchema(): Promise<SchemaStatus> {
+  const rows = await prisma.$queryRaw<Array<{ name: string }>>`
+    SELECT c.relname AS name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public'
+       AND c.relname = ANY(${[...REQUIRED_RELATIONS]})
+  `;
+
+  const found = new Set(rows.map((row) => row.name));
+  const missing = REQUIRED_RELATIONS.filter((name) => !found.has(name));
+
+  return { ok: missing.length === 0, missing };
+}
+
+/**
+ * 存活探针（liveness）。进程活着 + 数据库连得上就返回 200。
+ *
+ * ⚠️ 刻意**不**因为架构缺失而返回 5xx：存活探针一旦失败，
+ * 部署平台会重启实例甚至回滚部署，反而让排查更困难。
+ * 架构缺失属于「就绪」问题，交给 `/ready` 表达。
+ * 但状态会如实写进响应体，一眼就能看出问题。
+ */
 app.get('/health', async (_req, res) => {
   const startedAt = Date.now();
   try {
     await prisma.$queryRaw`SELECT 1`;
+    const dbLatency = Date.now() - startedAt;
+
+    let schema: SchemaStatus;
+    try {
+      schema = await checkSchema();
+    } catch (err) {
+      // 连 pg_class 都查不了，说明权限或连接有问题，如实上报而不是假装健康
+      schema = { ok: false, missing: ['(pg_class 查询失败)'] };
+      console.error('[health] 架构自检失败', err);
+    }
+
     res.json({
       success: true,
       data: {
-        status: 'ok',
+        status: schema.ok ? 'ok' : 'schema_missing',
         db: 'up',
-        db_latency_ms: Date.now() - startedAt,
+        db_latency_ms: dbLatency,
+        schema: schema.ok ? 'ok' : 'missing',
+        ...(schema.ok ? {} : { missing_relations: schema.missing }),
         env: env.NODE_ENV,
         uptime_s: Math.round(process.uptime()),
       },
@@ -75,6 +136,41 @@ app.get('/health', async (_req, res) => {
       data: { status: 'degraded', db: 'down' },
     });
     console.error('[health] 数据库探测失败', err);
+  }
+});
+
+/**
+ * 就绪探针（readiness）。架构不完整即 503 ——
+ * 此时实例不应接收业务流量，因为所有数据接口必然 500。
+ *
+ * 部署平台若支持区分存活/就绪，请把就绪探针指向这里。
+ */
+app.get('/ready', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    const schema = await checkSchema();
+
+    if (!schema.ok) {
+      res.status(503).json({
+        success: false,
+        error: {
+          code: 'SCHEMA_NOT_READY',
+          message:
+            '数据库架构不完整，建库脚本可能未执行或执行失败。' +
+            '请按 01_schema → 03_functions → 02_rls → 04_seed 的顺序重新执行。',
+          details: { missing_relations: schema.missing },
+        },
+      });
+      return;
+    }
+
+    res.json({ success: true, data: { status: 'ready' } });
+  } catch (err) {
+    res.status(503).json({
+      success: false,
+      error: { code: 'DB_DOWN', message: '数据库不可达' },
+    });
+    console.error('[ready] 探测失败', err);
   }
 });
 

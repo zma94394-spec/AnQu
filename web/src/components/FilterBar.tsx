@@ -28,6 +28,8 @@ const SORT_ICON: Record<SortKey, LucideIcon> = {
   cost_desc: Coins,
 };
 
+const EASE = 'ease-[cubic-bezier(0.25,1,0.5,1)]';
+
 export function FilterBar({
   categories,
   category,
@@ -41,8 +43,8 @@ export function FilterBar({
   const activeSort = SORT_OPTIONS.find((option) => option.key === sort);
 
   return (
-    <section aria-label="筛选与排序" className="space-y-3">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <section aria-label="筛选与排序" className="space-y-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         {/* -------------------------------------- 枪械分类 Pills */}
         <div className="min-w-0 lg:flex-1">
           <div
@@ -72,12 +74,12 @@ export function FilterBar({
           </div>
         </div>
 
-        {/* -------------------------------------- 排序：桌面 Tabs / 移动下拉 */}
+        {/* -------------------------------------- 排序：桌面分段控件 / 移动下拉 */}
         <div className="flex shrink-0 items-center gap-2">
           <div
             role="group"
             aria-label="排序方式"
-            className="hidden items-center gap-1 rounded-lg border border-line bg-surface/60 p-1 md:flex"
+            className="hidden items-center gap-0.5 rounded-control bg-glass p-1 md:flex"
           >
             {SORT_OPTIONS.map((option) => {
               const Icon = SORT_ICON[option.key];
@@ -91,11 +93,12 @@ export function FilterBar({
                   aria-pressed={active}
                   title={option.hint}
                   className={cn(
-                    'flex items-center gap-1.5 rounded-md px-2.5 py-1.5',
-                    'text-xs font-semibold transition-all duration-150',
+                    'press flex items-center gap-1.5 rounded-[10px] px-3 py-1.5',
+                    'text-[13px] font-medium',
+                    `transition-all duration-300 ${EASE}`,
                     active
-                      ? 'bg-tactical text-void shadow-[0_0_14px_-2px_rgba(245,158,11,0.6)]'
-                      : 'text-muted hover:bg-raised hover:text-ink',
+                      ? 'bg-glass-3 text-ink shadow-[0_2px_8px_rgb(0_0_0_/_0.28)]'
+                      : 'text-ink-2 hover:text-ink',
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -113,9 +116,9 @@ export function FilterBar({
               onChange={(event) => onSortChange(event.target.value as SortKey)}
               aria-label="排序方式"
               className={cn(
-                'h-9 w-full appearance-none rounded-lg border border-line bg-surface/70',
-                'pl-3 pr-8 text-xs font-semibold text-ink',
-                'focus:border-tactical/60 focus:outline-none',
+                'h-10 w-full appearance-none rounded-control border border-hairline bg-glass',
+                'pl-3.5 pr-9 text-[13px] font-medium text-ink',
+                'focus:border-hairline-2 focus:outline-none',
               )}
             >
               {SORT_OPTIONS.map((option) => (
@@ -125,7 +128,7 @@ export function FilterBar({
               ))}
             </select>
             <span
-              className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-dim"
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-ink-3"
               aria-hidden="true"
             >
               ▾
@@ -135,10 +138,10 @@ export function FilterBar({
       </div>
 
       {/* -------------------------------------- 结果摘要 + 排序口径说明 */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-dim">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-ink-3">
         <span className="flex items-center gap-1.5">
           <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-          共 <span className="font-mono font-semibold text-muted">{total}</span> 个方案
+          共 <span className="font-mono font-semibold text-ink-2">{total}</span> 个方案
         </span>
 
         {activeSort && (
@@ -151,10 +154,7 @@ export function FilterBar({
           <button
             type="button"
             onClick={onReset}
-            className={cn(
-              'flex items-center gap-1 rounded px-1.5 py-0.5',
-              'text-dim transition-colors hover:bg-raised hover:text-ink',
-            )}
+            className="press flex items-center gap-1 rounded-md px-2 py-0.5 text-ink-3 transition-colors hover:bg-glass hover:text-ink"
           >
             <X className="h-3 w-3" aria-hidden="true" />
             重置筛选
@@ -182,19 +182,20 @@ function CategoryPill({ label, count, active, onClick }: CategoryPillProps) {
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5',
-        'text-xs font-semibold transition-all duration-150',
+        'press flex shrink-0 items-center gap-1.5 rounded-chip px-3.5 py-1.5',
+        'text-[13px] font-medium',
+        `transition-all duration-300 ${EASE}`,
         active
-          ? 'border-tactical bg-tactical/15 text-tactical'
-          : 'border-line bg-surface/60 text-muted hover:border-line-strong hover:text-ink',
+          ? 'bg-accent text-black shadow-[0_4px_18px_rgb(255_159_10_/_0.36)]'
+          : 'bg-glass text-ink-2 hover:bg-glass-2 hover:text-ink',
       )}
     >
       {label}
       {count !== undefined && (
         <span
           className={cn(
-            'rounded-full px-1.5 py-px font-mono text-[10px] leading-4',
-            active ? 'bg-tactical/25 text-tactical' : 'bg-raised text-dim',
+            'rounded-chip px-1.5 py-px font-mono text-[10px] leading-4',
+            active ? 'bg-black/18 text-black/80' : 'bg-glass-2 text-ink-3',
           )}
         >
           {count}

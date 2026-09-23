@@ -12,7 +12,7 @@ export interface ModalShellProps {
   /** 提交中：禁止 Esc / 点遮罩 / 点关闭按钮关闭，避免中途丢掉用户输入 */
   busy?: boolean;
   onClose: () => void;
-  /** 是否自动聚焦第一个可聚焦元素 */
+  /** 是否自动聚焦内容区第一个可聚焦元素 */
   autoFocusFirst?: boolean;
   maxWidthClass?: string;
   /** 内容区最大高度，留出页头页脚空间 */
@@ -23,6 +23,8 @@ export interface ModalShellProps {
   panelRef?: RefObject<HTMLDivElement>;
 }
 
+const EASE = 'ease-[cubic-bezier(0.25,1,0.5,1)]';
+
 /**
  * 弹窗外壳。
  *
@@ -30,8 +32,8 @@ export interface ModalShellProps {
  * **必须处处一致** —— 任何一处漏掉，键盘用户就会 Tab 到背景页面上去，
  * 模态语义直接破掉。复制两份必然漂移，所以收敛到这里。
  *
- * 由调用方条件渲染（`{open && <XxxDialog/>}`），因此每次打开都是全新挂载，
- * 内部表单状态天然重置。
+ * 视觉上采用 Apple 的模态规范：高斯模糊蒙版 + 中心浮起的实心玻璃面板，
+ * 入场是轻微的缩放淡入而非滑入。
  */
 export function ModalShell({
   title,
@@ -41,7 +43,7 @@ export function ModalShell({
   onClose,
   autoFocusFirst = true,
   maxWidthClass = 'max-w-2xl',
-  bodyMaxHeightClass = 'max-h-[calc(100dvh-14rem)]',
+  bodyMaxHeightClass = 'max-h-[calc(100dvh-15rem)]',
   children,
   footer,
   panelRef,
@@ -106,7 +108,12 @@ export function ModalShell({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-void/80 p-4 backdrop-blur-sm sm:items-center"
+      className={cn(
+        'animate-fade-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto',
+        // 高斯模糊蒙版：比纯色半透明更能体现"层"的关系
+        'bg-black/55 p-4 backdrop-blur-md',
+        'sm:items-center',
+      )}
       onMouseDown={(event) => {
         // 只有点击遮罩本身才关闭；从面板内拖拽到遮罩上不应误关
         if (event.target === event.currentTarget && !busy) onClose();
@@ -118,19 +125,26 @@ export function ModalShell({
         aria-modal="true"
         aria-labelledby="modal-title"
         className={cn(
-          'clip-tactical animate-rise-in w-full',
+          'animate-modal-in glass-strong w-full rounded-card',
+          'shadow-[0_32px_90px_-20px_rgb(0_0_0_/_0.85)]',
           maxWidthClass,
-          'border border-line bg-surface shadow-[0_28px_80px_-24px_rgba(0,0,0,0.95)]',
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+        <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4">
           <div className="min-w-0">
-            <h2 id="modal-title" className="flex items-center gap-2 text-base font-bold text-ink">
-              {Icon && <Icon className="h-4 w-4 shrink-0 text-tactical" strokeWidth={2.5} aria-hidden="true" />}
+            <h2
+              id="modal-title"
+              className="flex items-center gap-2.5 text-[19px] font-semibold tracking-[-0.022em] text-ink"
+            >
+              {Icon && (
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-accent/16">
+                  <Icon className="h-4 w-4 text-accent" strokeWidth={2.5} aria-hidden="true" />
+                </span>
+              )}
               {title}
             </h2>
             {description && (
-              <p className="mt-1 text-xs leading-relaxed text-muted">{description}</p>
+              <p className="mt-2 text-[13px] leading-relaxed text-ink-2">{description}</p>
             )}
           </div>
 
@@ -139,18 +153,26 @@ export function ModalShell({
             onClick={onClose}
             disabled={busy}
             aria-label="关闭"
-            className="shrink-0 rounded-md p-1.5 text-dim transition-colors hover:bg-raised hover:text-ink disabled:opacity-40"
+            className={cn(
+              'press grid h-8 w-8 shrink-0 place-items-center rounded-chip',
+              'bg-glass text-ink-2',
+              `transition-colors duration-300 ${EASE}`,
+              'hover:bg-glass-2 hover:text-ink disabled:opacity-40',
+            )}
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
-        <div ref={bodyRef} className={cn('space-y-4 overflow-y-auto px-5 py-5', bodyMaxHeightClass)}>
+        <div
+          ref={bodyRef}
+          className={cn('space-y-4 overflow-y-auto px-6 pb-5', bodyMaxHeightClass)}
+        >
           {children}
         </div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-2 border-t border-line px-5 py-4">
+          <div className="flex items-center justify-end gap-2.5 border-t border-hairline px-6 py-4">
             {footer}
           </div>
         )}

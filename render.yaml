@@ -1,0 +1,55 @@
+# ============================================================================
+#  Render 声明式部署配置（Blueprint）
+#
+#  用法：Render 控制台 → New → Blueprint → 选择本仓库。
+#        也可在已有服务上手动照抄下列设置。
+#
+#  为什么用声明式而不是点界面：
+#    · 构建命令、健康检查、环境变量键名都进版本库，避免"某次手滑改错"无法追溯
+#    · 换环境/重建服务时不必凭记忆重填
+# ============================================================================
+
+services:
+  - type: web
+    name: anqu-api
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    # --include=dev 是必须的：tsc 与 prisma CLI 都在 devDependencies 里，
+    # 若构建时 NODE_ENV=production 导致跳过 devDeps，编译会直接失败。
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    # 存活探针：DB 连得上就 200。响应体会带 schema 字段，
+    # 架构缺失时显示 "status":"schema_missing" 并列出缺失对象。
+    # 另有 /ready 作为严格就绪探针（架构不完整返回 503），
+    # 若 Render 后续支持区分存活/就绪，把就绪探针指向 /ready。
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      # ---- 运行时 ----
+      - key: NODE_ENV
+        value: production
+      # Render 会自动注入 PORT，不要手动设置，否则可能与平台冲突
+
+      # ---- 数据库（在控制台填真实值，不要写进本文件）----
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+
+      # ---- Supabase ----
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      # ---- CORS ----
+      # 设为 * 表示接受任意来源（后端会回显请求的 Origin）。
+      # 若要收紧，改成逗号分隔的域名列表，例如：
+      #   https://anqu.vercel.app,https://anqu.pages.dev
+      - key: CORS_ORIGIN
+        value: '*'

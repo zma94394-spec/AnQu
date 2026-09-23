@@ -11,6 +11,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
+    "postinstall": "prisma generate",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check:sql": "python scripts/check_sql.py",
     "test:db": "node --test",
@@ -18,7 +19,8 @@
     "prisma:pull": "prisma db pull",
     "db:apply": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f db/01_schema.sql -f db/03_functions.sql -f db/02_rls.sql -f db/04_seed.sql",
     "db:apply:selfhosted": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f db/00_auth_shim.sql -f db/01_schema.sql -f db/03_functions.sql -f db/02_rls.sql -f db/04_seed.sql",
-    "db:deploy": "bash scripts/deploy_db.sh"
+    "db:deploy": "bash scripts/deploy_db.sh",
+    "db:migrate": "node --import tsx scripts/apply_migrations.mts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -35,6 +37,8 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^22.7.5",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0",
     "prisma": "^5.22.0",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3"

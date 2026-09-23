@@ -1,6 +1,26 @@
 node_modules/
 dist/
+
+# ---------------------------------------------------------------- 环境变量
+# 绝不提交真实凭据
 .env
 .env.local
+.env.*.local
+# 备份文件同样含真实密码（.env.bak.20260923164710 这类），必须一并忽略
+.env.bak.*
+# 注意：以下两个**需要**提交 ——
+#   .env.example        ：模板，无真实值
+#   web/.env.production ：只含 anon key（设计上就是公开的，会被打进前端产物）与 API 域名
+
 *.log
 .DS_Store
+
+# Vite 在改写 vite.config.ts 时会留下 timestamp 临时文件，属构建垃圾
+vite.config.ts.timestamp-*
+
+# PM2 日志目录
+logs/
+
+# 说明：.workbuddy-ai/ 保持被跟踪 —— 上一版仓库已提交其中的 memory 文件，
+# 突然忽略会让这些文件从版本库中消失。若要改为不跟踪，请显式执行
+# `git rm -r --cached .workbuddy-ai` 并在团队内确认。

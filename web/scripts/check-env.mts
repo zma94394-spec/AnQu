@@ -15,8 +15,14 @@
 
 import { loadEnv } from 'vite';
 
-/** 占位符特征：方括号、尖括号模板、YOUR- 前缀、example.com 域名 */
-const PLACEHOLDER = /\[[^\]]*\]|<[a-z-]+>|YOUR-|example\.com/i;
+/**
+ * 占位符特征：方括号、**任意内容的尖括号包裹**、YOUR- 前缀、example.com 域名。
+ *
+ * 尖括号用 `<[^>]*>` 而不是 `<[a-z-]+>` —— 后者只匹配纯小写字母，
+ * 像 `<eyJhbGci...>` 这种把真实 key 包在尖括号里的粘贴失误会被漏掉，
+ * 而它恰恰是最常见的错误（key 多出 2 个字符，服务端判为非法令牌）。
+ */
+const PLACEHOLDER = /\[[^\]]*\]|<[^>]*>|YOUR-|example\.com/i;
 
 const env = loadEnv('production', process.cwd(), 'VITE_');
 
@@ -62,9 +68,27 @@ if (!supabaseUrl || !supabaseAnon) {
 } else {
   if (PLACEHOLDER.test(supabaseUrl)) {
     blocking.push(`VITE_SUPABASE_URL 仍是占位符：${supabaseUrl}`);
+  } else {
+    // 形状校验。supabase-js 会在根地址后自行拼接 /auth/v1 与 /rest/v1，
+    // 所以这里必须是**项目根地址**。
+    if (/\/rest\/v1/i.test(supabaseUrl)) {
+      blocking.push(
+        `VITE_SUPABASE_URL 带了 /rest/v1 路径：${supabaseUrl}\n` +
+          '     这是 REST 端点而非项目根地址。supabase-js 会拼成 .../rest/v1//auth/v1/token → 404，登录必然失败。\n' +
+          '     请改为 https://<project-ref>.supabase.co',
+      );
+    }
+    if (supabaseUrl.endsWith('/')) {
+      blocking.push(`VITE_SUPABASE_URL 以斜杠结尾：${supabaseUrl}（会拼出双斜杠路径）`);
+    }
   }
+
   if (PLACEHOLDER.test(supabaseAnon)) {
     blocking.push('VITE_SUPABASE_ANON_KEY 仍是占位符，请填入 Project Settings → API 的 anon key。');
+  } else if (/[<>\s]/.test(supabaseAnon)) {
+    blocking.push(
+      'VITE_SUPABASE_ANON_KEY 含尖括号或空白字符 —— 请只粘贴 key 本身，不要用 <> 包裹。',
+    );
   }
 }
 
@@ -81,6 +105,9 @@ if (!apiBase) {
   );
 } else if (PLACEHOLDER.test(apiBase)) {
   blocking.push(`VITE_API_BASE_URL 仍是占位符：${apiBase}`);
+} else if (apiBase.endsWith('/')) {
+  // 代码里是 `${API_BASE}${path}` 拼接，多一个斜杠会拼出 //api/... 路径
+  blocking.push(`VITE_API_BASE_URL 以斜杠结尾：${apiBase}（会拼出 //api/... 路径）`);
 }
 
 /* ------------------------------------------------ 汇总 */

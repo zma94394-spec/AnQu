@@ -1,14 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  Crosshair,
-  LayoutGrid,
-  Monitor,
-  Plus,
-  Search,
-  Smartphone,
-  X,
-} from 'lucide-react';
+import { Crosshair, LayoutGrid, Monitor, Plus, Search, Smartphone, X } from 'lucide-react';
 
 import { useAppShell } from '../lib/appShell';
 import { USE_MOCK } from '../lib/api';
@@ -26,6 +18,8 @@ const PLATFORM_ICON = {
   mobile: Smartphone,
   pc: Monitor,
 } as const;
+
+const EASE = 'ease-[cubic-bezier(0.25,1,0.5,1)]';
 
 /**
  * 全局导航栏。
@@ -91,29 +85,31 @@ export function Header() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line/80 bg-void/85 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 lg:h-16 lg:flex-nowrap lg:px-6 lg:py-0">
+    <header className="glass-thin sticky top-0 z-40">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 lg:h-[68px] lg:flex-nowrap lg:px-6 lg:py-0">
         {/* ---------------------------------------------- 品牌 */}
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="group flex shrink-0 items-center gap-2.5"
+          className="press group flex shrink-0 items-center gap-3 rounded-control"
           aria-label="暗区改枪库 首页"
         >
           <span
             className={cn(
-              'clip-tactical grid h-9 w-9 place-items-center',
-              'bg-gradient-to-br from-tactical to-tactical-deep',
-              'shadow-[0_0_18px_-2px_rgba(245,158,11,0.55)]',
-              'transition-transform duration-200 group-hover:scale-105',
+              'grid h-10 w-10 place-items-center rounded-[13px]',
+              'bg-gradient-to-br from-accent to-accent-2',
+              'shadow-[0_4px_16px_rgb(255_159_10_/_0.32)]',
+              `transition-transform duration-300 ${EASE} group-hover:scale-[1.04]`,
             )}
           >
-            <Crosshair className="h-5 w-5 text-void" strokeWidth={2.5} aria-hidden="true" />
+            <Crosshair className="h-5 w-5 text-black/85" strokeWidth={2.5} aria-hidden="true" />
           </span>
 
           <span className="flex flex-col leading-none">
-            <span className="text-[15px] font-bold tracking-tight text-ink">暗区改枪库</span>
-            <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-dim">
+            <span className="text-[17px] font-semibold tracking-[-0.022em] text-ink">
+              暗区改枪库
+            </span>
+            <span className="mt-[3px] text-[10px] font-medium uppercase tracking-[0.16em] text-ink-3">
               Arena Builds
             </span>
           </span>
@@ -124,10 +120,10 @@ export function Header() {
           type="button"
           onClick={openPublish}
           className={cn(
-            'order-2 ml-auto flex shrink-0 items-center gap-1.5 lg:order-none lg:ml-0',
-            'clip-tactical bg-tactical px-3 py-2 text-xs font-bold text-void lg:px-4',
-            'transition-colors hover:bg-tactical-deep hover:text-ink',
-            'animate-tactical-pulse',
+            'press order-2 ml-auto flex shrink-0 items-center gap-1.5 rounded-chip lg:order-none lg:ml-0',
+            'bg-accent px-4 py-2 text-[13px] font-semibold text-black',
+            `transition-all duration-300 ${EASE}`,
+            'hover:bg-accent-2 hover:shadow-[0_6px_22px_rgb(255_159_10_/_0.42)]',
           )}
         >
           <Plus className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
@@ -138,23 +134,24 @@ export function Header() {
         <div className="order-3 w-full lg:order-none lg:w-auto lg:max-w-xl lg:flex-1">
           <div className="relative">
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3"
               aria-hidden="true"
             />
+            {/* iOS 风格搜索框：胶囊形、内嵌填充、无硬边框 */}
             <input
               ref={searchRef}
               type="text"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="搜索枪械或方案关键字，如 FAL、腰射、封锁区…"
+              placeholder="搜索枪械或方案关键字，如 ACE32、腰射、封锁区…"
               aria-label="搜索改枪方案"
               autoComplete="off"
               className={cn(
-                'h-10 w-full rounded-lg border border-line bg-surface/70 pl-9 pr-20',
-                'text-sm text-ink placeholder:text-dim',
-                'transition-colors duration-150',
-                'hover:border-line-strong',
-                'focus:border-tactical/60 focus:bg-surface focus:outline-none',
+                'h-10 w-full rounded-chip border border-transparent bg-glass pl-10 pr-20',
+                'text-[15px] text-ink placeholder:text-ink-3',
+                `transition-all duration-300 ${EASE}`,
+                'hover:bg-glass-2',
+                'focus:border-hairline-2 focus:bg-glass-2 focus:outline-none',
               )}
             />
 
@@ -167,34 +164,32 @@ export function Header() {
                   searchRef.current?.focus();
                 }}
                 aria-label="清空搜索"
-                className={cn(
-                  'absolute right-2.5 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center',
-                  'rounded text-dim transition-colors hover:bg-raised hover:text-ink',
-                )}
+                className="press absolute right-3 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-chip bg-glass-2 text-ink-3 transition-colors hover:text-ink"
               >
                 <X className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             ) : (
               <kbd
                 className={cn(
-                  'pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2',
-                  'rounded border border-line bg-raised px-1.5 py-0.5',
-                  'font-mono text-[10px] font-medium text-dim sm:block',
+                  'pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2',
+                  'rounded-md border border-hairline bg-glass px-1.5 py-0.5',
+                  'font-mono text-[10px] font-medium text-ink-3 sm:block',
                 )}
                 aria-hidden="true"
               >
-                Ctrl K
+                ⌘K
               </kbd>
             )}
           </div>
         </div>
 
-        {/* ---------------------------------------------- 平台切换 + Mock 标记 */}
-        <div className="order-4 flex w-full items-center gap-2 lg:order-none lg:w-auto">
+        {/* ---------------------------------------------- 平台分段控件 + Mock 标记 */}
+        <div className="order-4 flex w-full items-center gap-2.5 lg:order-none lg:w-auto">
+          {/* iOS 分段控件：容器内嵌，选中项浮起 */}
           <div
             role="group"
             aria-label="平台筛选"
-            className="flex items-center gap-1 rounded-lg border border-line bg-surface/60 p-1"
+            className="flex items-center gap-0.5 rounded-control bg-glass p-1"
           >
             {PLATFORM_TABS.map((tab) => {
               const Icon = PLATFORM_ICON[tab.value];
@@ -207,11 +202,12 @@ export function Header() {
                   onClick={() => applyFilters({ platform: tab.value, page: 1 })}
                   aria-pressed={active}
                   className={cn(
-                    'flex items-center gap-1.5 rounded-md px-2.5 py-1.5',
-                    'text-xs font-semibold transition-all duration-150',
+                    'press flex items-center gap-1.5 rounded-[10px] px-3 py-1.5',
+                    'text-[13px] font-medium',
+                    `transition-all duration-300 ${EASE}`,
                     active
-                      ? 'bg-tactical text-void shadow-[0_0_14px_-2px_rgba(245,158,11,0.6)]'
-                      : 'text-muted hover:bg-raised hover:text-ink',
+                      ? 'bg-glass-3 text-ink shadow-[0_2px_8px_rgb(0_0_0_/_0.28)]'
+                      : 'text-ink-2 hover:text-ink',
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -225,10 +221,7 @@ export function Header() {
           {USE_MOCK && (
             <span
               title="当前展示的是内置演示数据，未连接后端接口"
-              className={cn(
-                'shrink-0 rounded border border-tactical/40 bg-tactical/10',
-                'px-1.5 py-1 font-mono text-[10px] font-bold tracking-wider text-tactical',
-              )}
+              className="shrink-0 rounded-md border border-hairline bg-glass px-2 py-1 font-mono text-[10px] font-semibold tracking-wider text-accent"
             >
               MOCK
             </span>

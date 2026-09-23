@@ -51,11 +51,6 @@ for arg in "$@"; do
 done
 
 # ---------------------------------------------------------------- 前置检查
-if ! command -v psql >/dev/null 2>&1; then
-  echo "❌ 未找到 psql，请先安装 postgresql-client" >&2
-  exit 1
-fi
-
 # 加载 .env（如果存在），让 DATABASE_URL / DIRECT_URL 自动可用
 if [[ -f .env ]]; then
   set -a
@@ -65,14 +60,35 @@ if [[ -f .env ]]; then
   echo "已加载 .env"
 fi
 
-# DDL 走直连（5432）。连接池的事务模式对 DDL 支持不完整，
-# 且 schema 内省依赖会话态，必须用直连。
-PSQL_URL="${DIRECT_URL:-${DATABASE_URL:-}}"
+# dotenv 允许值带引号（DATABASE_URL="postgresql://..."），
+# 但 shell 的 `source` **不会**剥掉它们 —— 直接拼进连接串会得到
+# postgresql://"..."@host 这种非法值，报错还很难看懂。
+# 必须显式去掉首尾引号。
+strip_quotes() {
+  local v="$1"
+  v="${v%\"}"; v="${v#\"}"
+  v="${v%\'}"; v="${v#\'}"
+  printf '%s' "$v"
+}
+
+# DDL 走直连/会话池。连接池的事务模式对 DDL 支持不完整，
+# 且 schema 内省依赖会话态。
+PSQL_URL="$(strip_quotes "${DIRECT_URL:-${DATABASE_URL:-}}")"
 
 if [[ -z "${PSQL_URL}" ]]; then
   echo "❌ 未设置 DIRECT_URL 或 DATABASE_URL，无法连接数据库。" >&2
   echo "   请复制 .env.example 为 .env 并填入 Supabase 连接串。" >&2
   exit 1
+fi
+
+# 没有 psql 时自动改用 Node 执行器（同样按正确顺序、逐文件事务）。
+# 这样在 Windows / 精简容器里也能跑，不必额外装 postgresql-client。
+if ! command -v psql >/dev/null 2>&1; then
+  echo "ℹ️  未找到 psql，改用 Node 迁移执行器（scripts/apply_migrations.mts）"
+  if [[ "${ASSUME_YES}" -eq 1 ]]; then
+    exec node --import tsx scripts/apply_migrations.mts --yes
+  fi
+  exec node --import tsx scripts/apply_migrations.mts
 fi
 
 # 从连接串里提取 host 用于展示，绝不回显密码

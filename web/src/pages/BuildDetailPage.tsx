@@ -23,6 +23,7 @@ import { cn } from '../lib/cn';
 import { formatCoins, formatCount, formatRelativeTime, PLATFORM_LABEL } from '../lib/format';
 import { useCopyCode } from '../hooks/useCopyCode';
 import { useLikeBuild } from '../hooks/useLikeBuild';
+import { EASE } from '../lib/styles';
 import type { BuildDTO, Platform } from '../types/api';
 
 const PLATFORM_ICON: Record<Platform, LucideIcon> = {
@@ -79,14 +80,12 @@ export function BuildDetailPage() {
 
   /** 评论发表成功后同步计数（后端由触发器维护，前端只是跟随显示） */
   const handleCommentAdded = useCallback(() => {
-    setBuild((prev) =>
-      prev ? { ...prev, comments_count: prev.comments_count + 1 } : prev,
-    );
+    setBuild((prev) => (prev ? { ...prev, comments_count: prev.comments_count + 1 } : prev));
     notify({ text: '评论已发表。' });
   }, [notify]);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-6 lg:px-6 lg:py-8">
+    <main className="mx-auto max-w-3xl px-4 py-8 lg:px-6 lg:py-12">
       <BackLink />
 
       {loading && <DetailSkeleton />}
@@ -94,14 +93,16 @@ export function BuildDetailPage() {
       {!loading && error && (
         <div
           role="alert"
-          className="clip-tactical mt-4 flex flex-col items-center border border-line bg-surface/50 px-6 py-16 text-center"
+          className="mt-6 flex flex-col items-center rounded-card border border-hairline bg-glass px-6 py-20 text-center"
         >
-          <PackageOpen className="h-10 w-10 text-dim" strokeWidth={1.5} aria-hidden="true" />
-          <p className="mt-4 text-sm font-semibold text-ink">
+          <span className="grid h-16 w-16 place-items-center rounded-[20px] bg-glass-2">
+            <PackageOpen className="h-8 w-8 text-ink-3" strokeWidth={1.5} aria-hidden="true" />
+          </span>
+          <p className="mt-5 text-[17px] font-semibold tracking-[-0.022em] text-ink">
             {error.code === 'BUILD_NOT_FOUND' ? '这个改枪方案不存在或已下架' : '方案加载失败'}
           </p>
-          <p className="mt-1.5 max-w-md text-xs leading-relaxed text-muted">{error.message}</p>
-          <code className="mt-3 rounded border border-line bg-void/70 px-2 py-1 font-mono text-[11px] text-dim">
+          <p className="mt-2 max-w-md text-[13px] leading-relaxed text-ink-2">{error.message}</p>
+          <code className="mt-4 rounded-[10px] bg-black/40 px-3 py-1.5 font-mono text-[11px] text-ink-3">
             {error.code}
           </code>
         </div>
@@ -144,48 +145,41 @@ function BuildDetail({ build, onPatch, onCommentAdded }: BuildDetailProps) {
   const PlatformIcon = PLATFORM_ICON[build.platform];
 
   return (
-    <article className="mt-4">
+    <article className="mt-6">
       {/* ------------------------------------------------ 头部信息 */}
       <div className="flex flex-wrap items-center gap-2">
-        <span
-          className={cn(
-            'rounded border border-tactical/45 bg-tactical/12 px-2 py-0.5',
-            'font-mono text-xs font-bold tracking-wide text-tactical',
-          )}
-        >
+        <span className="rounded-[9px] bg-accent/16 px-2.5 py-1 font-mono text-[13px] font-bold tracking-tight text-accent">
           {build.gun.name}
         </span>
-
-        <span className="rounded border border-line bg-raised/80 px-1.5 py-0.5 text-[10px] font-semibold text-muted">
+        <span className="rounded-[9px] bg-glass-2 px-2.5 py-1 text-[11px] font-medium text-ink-2">
           {build.gun.category_name}
         </span>
-
-        <span className="flex items-center gap-1 rounded border border-line bg-raised/80 px-1.5 py-0.5 text-[10px] font-semibold text-muted">
+        <span className="flex items-center gap-1 rounded-[9px] bg-glass-2 px-2.5 py-1 text-[11px] font-medium text-ink-2">
           <PlatformIcon className="h-3 w-3" aria-hidden="true" />
           {PLATFORM_LABEL[build.platform] ?? build.platform}
         </span>
 
-        <span className="ml-auto flex items-center gap-1 text-[11px] text-dim">
+        <span className="ml-auto flex items-center gap-1 text-[11px] text-ink-3">
           <Clock className="h-3 w-3" aria-hidden="true" />
           {formatRelativeTime(build.created_at)}
         </span>
       </div>
 
-      <h1 className="mt-3 text-xl font-bold leading-snug tracking-tight text-ink lg:text-2xl">
+      <h1 className="mt-4 text-[30px] font-semibold leading-[1.15] tracking-[-0.028em] text-ink lg:text-[38px]">
         {build.title}
       </h1>
 
       {/* ------------------------------------------------ 改枪码（详情页放大版） */}
-      <div className="mt-4 flex flex-col gap-2 rounded-xl border border-tactical/30 bg-void/70 p-3 sm:flex-row sm:items-stretch">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-dim">
+      <div className="mt-6 flex flex-col gap-2.5 rounded-card border border-hairline bg-glass p-4 sm:flex-row sm:items-stretch">
+        <div className="min-w-0 flex-1 rounded-panel bg-black/35 p-3.5">
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-3">
             <Terminal className="h-3 w-3" aria-hidden="true" />
             改枪码
             <span className="ml-auto font-mono normal-case tracking-normal">
               {build.code.length} 位
             </span>
           </div>
-          <code className="mt-1.5 block select-all break-all font-mono text-sm leading-6 text-ink">
+          <code className="mt-2 block select-all break-all font-mono text-[15px] leading-7 text-ink">
             {build.code}
           </code>
         </div>
@@ -194,20 +188,21 @@ function BuildDetail({ build, onPatch, onCommentAdded }: BuildDetailProps) {
           type="button"
           onClick={copy.copy}
           className={cn(
-            'flex shrink-0 items-center justify-center gap-2 rounded-lg px-5 py-3',
-            'text-sm font-bold transition-colors duration-150 sm:flex-col sm:px-6',
-            copy.state === 'copied' && 'animate-copy-pop bg-signal text-void',
-            copy.state === 'failed' && 'bg-danger text-ink',
+            'press flex shrink-0 items-center justify-center gap-2 rounded-control px-6 py-4',
+            'text-[15px] font-semibold sm:flex-col sm:px-7',
+            `transition-all duration-300 ${EASE}`,
+            copy.state === 'copied' && 'animate-copy-pop bg-signal text-black',
+            copy.state === 'failed' && 'bg-danger text-white',
             copy.state === 'idle' &&
-              'bg-tactical text-void hover:bg-tactical-deep hover:text-ink',
+              'bg-accent text-black hover:bg-accent-2 hover:shadow-[0_8px_26px_rgb(255_159_10_/_0.42)]',
           )}
         >
           {copy.state === 'copied' ? (
-            <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
+            <Check className="h-5 w-5" strokeWidth={3} aria-hidden="true" />
           ) : copy.state === 'failed' ? (
-            <X className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
+            <X className="h-5 w-5" strokeWidth={3} aria-hidden="true" />
           ) : (
-            <Copy className="h-4 w-4" aria-hidden="true" />
+            <Copy className="h-5 w-5" aria-hidden="true" />
           )}
           <span className="whitespace-nowrap">{copy.label}</span>
         </button>
@@ -228,11 +223,13 @@ function BuildDetail({ build, onPatch, onCommentAdded }: BuildDetailProps) {
 
       {/* ------------------------------------------------ 完整说明 */}
       {build.description && (
-        <section className="mt-5 rounded-xl border border-line bg-surface/50 p-4">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-dim">改装思路与建议子弹</h2>
+        <section className="mt-6 rounded-card border border-hairline bg-glass p-6">
+          <h2 className="text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-3">
+            改装思路与建议子弹
+          </h2>
           {/* whitespace-pre-line：种子数据里的说明用 \n 分段，
               不保留换行会挤成一大坨，正好丢掉"建议子弹"那行的可读性 */}
-          <p className="mt-2.5 whitespace-pre-line text-sm leading-7 text-muted">
+          <p className="mt-3 whitespace-pre-line text-[15px] leading-[1.75] text-ink-2">
             {build.description}
           </p>
         </section>
@@ -244,7 +241,7 @@ function BuildDetail({ build, onPatch, onCommentAdded }: BuildDetailProps) {
           {build.tags.map((tag) => (
             <span
               key={tag}
-              className="rounded-full border border-line bg-raised/60 px-2.5 py-1 text-[11px] font-medium text-muted"
+              className="rounded-chip bg-glass px-3 py-1.5 text-[12px] font-medium text-ink-2"
             >
               #{tag}
             </span>
@@ -257,11 +254,13 @@ function BuildDetail({ build, onPatch, onCommentAdded }: BuildDetailProps) {
           disabled={like.pending}
           aria-pressed={like.liked}
           className={cn(
-            'flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold',
-            'transition-colors duration-150 disabled:cursor-wait disabled:opacity-60',
+            'press flex items-center gap-2 rounded-chip px-4 py-2',
+            'text-[13px] font-semibold',
+            `transition-all duration-300 ${EASE}`,
+            'disabled:cursor-wait disabled:opacity-60',
             like.liked
-              ? 'border-danger/50 bg-danger/10 text-danger'
-              : 'border-line bg-surface/60 text-muted hover:border-danger/40 hover:text-danger',
+              ? 'bg-danger/16 text-danger'
+              : 'bg-glass text-ink-2 hover:bg-glass-2 hover:text-danger',
           )}
         >
           <Heart
@@ -293,7 +292,11 @@ function BackLink() {
         if (window.history.length > 1) navigate(-1);
         else navigate('/');
       }}
-      className="flex items-center gap-1.5 text-xs font-semibold text-muted transition-colors hover:text-tactical"
+      className={cn(
+        'press flex items-center gap-1.5 rounded-chip bg-glass px-3.5 py-2',
+        'text-[13px] font-medium text-ink-2',
+        `transition-all duration-300 ${EASE} hover:bg-glass-2 hover:text-ink`,
+      )}
     >
       <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
       返回方案列表
@@ -311,12 +314,12 @@ function StatBlock({
   accent?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-line bg-surface/50 px-3 py-2.5">
-      <div className="text-[10px] font-medium text-dim">{label}</div>
+    <div className="rounded-panel border border-hairline bg-glass px-4 py-3.5">
+      <div className="text-[11px] font-medium text-ink-3">{label}</div>
       <div
         className={cn(
-          'mt-1 font-mono text-sm font-bold',
-          accent ? 'text-tactical' : 'text-ink',
+          'mt-1.5 font-mono text-[15px] font-semibold tracking-tight',
+          accent ? 'text-accent' : 'text-ink',
         )}
       >
         {value}
@@ -327,20 +330,20 @@ function StatBlock({
 
 function DetailSkeleton() {
   return (
-    <div className="mt-4" aria-hidden="true">
+    <div className="mt-6" aria-hidden="true">
       <div className="flex gap-2">
-        <div className="skeleton h-5 w-16 rounded" />
-        <div className="skeleton h-5 w-20 rounded" />
+        <div className="skeleton h-6 w-16 rounded-[9px]" />
+        <div className="skeleton h-6 w-20 rounded-[9px]" />
       </div>
-      <div className="skeleton mt-3 h-7 w-3/4 rounded" />
-      <div className="skeleton mt-4 h-24 w-full rounded-xl" />
+      <div className="skeleton mt-4 h-9 w-3/4 rounded-lg" />
+      <div className="skeleton mt-6 h-32 w-full rounded-card" />
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="skeleton h-16 rounded-lg" />
+          <div key={i} className="skeleton h-[72px] rounded-panel" />
         ))}
       </div>
-      <div className="skeleton mt-5 h-32 w-full rounded-xl" />
-      <div className="mt-5 flex items-center gap-2 text-xs text-dim">
+      <div className="skeleton mt-6 h-40 w-full rounded-card" />
+      <div className="mt-6 flex items-center gap-2 text-[13px] text-ink-3">
         <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
         评论区加载中…
       </div>

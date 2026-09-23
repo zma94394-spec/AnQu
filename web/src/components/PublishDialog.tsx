@@ -19,6 +19,13 @@ import { ApiError, createBuild } from '../lib/api';
 import { cn } from '../lib/cn';
 import { formatCoins } from '../lib/format';
 import {
+  EASE,
+  FIELD_LABEL_CLASS,
+  inputClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../lib/styles';
+import {
   EMPTY_FORM,
   FIELD_ORDER,
   toCreateBuildInput,
@@ -26,9 +33,9 @@ import {
   validateForm,
 } from '../lib/validation';
 import type { FieldErrors, PublishFormValues } from '../lib/validation';
-import { ModalShell } from './ModalShell';
 import { TAG_MAX_COUNT, TAG_VOCABULARY } from '../types/ui';
 import type { BuildDTO, GunDTO, Platform, ValidationIssue } from '../types/api';
+import { ModalShell } from './ModalShell';
 
 export interface PublishDialogProps {
   /** 枪械字典，来自 App 已加载的 GET /api/guns，避免弹窗内重复请求 */
@@ -40,7 +47,7 @@ export interface PublishDialogProps {
 const PLATFORM_OPTIONS: Array<{ value: Platform; label: string; icon: typeof Smartphone }> = [
   { value: 'mobile', label: '手游', icon: Smartphone },
   { value: 'pc', label: 'PC端游', icon: Monitor },
-  { value: 'both', label: '全平台通用', icon: LayoutGrid },
+  { value: 'both', label: '全平台', icon: LayoutGrid },
 ];
 
 /**
@@ -228,30 +235,12 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
       maxWidthClass="max-w-2xl"
       footer={
         <>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={submitting}
-            className={cn(
-              'rounded-md border border-line bg-raised px-4 py-2 text-xs font-semibold',
-              'text-muted transition-colors hover:border-line-strong hover:text-ink',
-              'disabled:opacity-40',
-            )}
-          >
+          <button type="button" onClick={onClose} disabled={submitting} className={secondaryButtonClass()}>
             取消
           </button>
 
           {/* 按钮在 footer 里，通过 form 属性关联到内容区的表单 */}
-          <button
-            type="submit"
-            form="publish-form"
-            disabled={submitting}
-            className={cn(
-              'flex items-center gap-1.5 rounded-md bg-tactical px-4 py-2 text-xs font-bold',
-              'text-void transition-colors hover:bg-tactical-deep hover:text-ink',
-              'disabled:cursor-wait disabled:opacity-60',
-            )}
-          >
+          <button type="submit" form="publish-form" disabled={submitting} className={primaryButtonClass()}>
             {submitting ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -269,12 +258,7 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
     >
       <form id="publish-form" onSubmit={handleSubmit} noValidate className="space-y-4">
         {/* ---------------------------------------- 枪械 */}
-        <Field
-          label="枪械"
-          required
-          error={errors.gun_id}
-          hint="支持按名称或分类搜索"
-        >
+        <Field label="枪械" required error={errors.gun_id} hint="支持按名称或分类搜索">
           <GunPicker
             guns={guns}
             value={values.gun_id}
@@ -339,17 +323,18 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
                 placeholder="32000"
                 className={cn(inputClass(Boolean(errors.estimated_cost)), 'pr-16 font-mono')}
               />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-dim">
+              <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] text-ink-3">
                 柯恩币
               </span>
             </div>
             {costPreview && (
-              <p className="mt-1 text-[11px] text-tactical">卡片将显示 ~{costPreview}</p>
+              <p className="mt-1.5 text-[11px] text-accent">卡片将显示 ~{costPreview}</p>
             )}
           </Field>
 
           <Field label="适用平台" required>
-            <div className="flex gap-1 rounded-lg border border-line bg-void/50 p-1">
+            {/* iOS 分段控件 */}
+            <div className="flex items-center gap-0.5 rounded-control bg-black/25 p-1">
               {PLATFORM_OPTIONS.map((option) => {
                 const Icon = option.icon;
                 const active = values.platform === option.value;
@@ -360,11 +345,12 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
                     onClick={() => setField('platform', option.value)}
                     aria-pressed={active}
                     className={cn(
-                      'flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-2',
-                      'text-xs font-semibold transition-colors',
+                      'press flex flex-1 items-center justify-center gap-1.5 rounded-[10px] px-2 py-2',
+                      'text-[13px] font-medium',
+                      `transition-all duration-300 ${EASE}`,
                       active
-                        ? 'bg-tactical text-void'
-                        : 'text-muted hover:bg-raised hover:text-ink',
+                        ? 'bg-glass-3 text-ink shadow-[0_2px_8px_rgb(0_0_0_/_0.28)]'
+                        : 'text-ink-2 hover:text-ink',
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -377,11 +363,7 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
         </div>
 
         {/* ---------------------------------------- 标签 */}
-        <Field
-          label="标签"
-          error={errors.tags}
-          hint={`${values.tags.length}/${TAG_MAX_COUNT}`}
-        >
+        <Field label="标签" error={errors.tags} hint={`${values.tags.length}/${TAG_MAX_COUNT}`}>
           <div className="flex flex-wrap gap-1.5">
             {TAG_VOCABULARY.map((tag) => {
               const active = values.tags.includes(tag);
@@ -392,10 +374,11 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
                   onClick={() => toggleTag(tag)}
                   aria-pressed={active}
                   className={cn(
-                    'rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all',
+                    'press rounded-chip px-2.5 py-1 text-[12px] font-medium',
+                    `transition-all duration-300 ${EASE}`,
                     active
-                      ? 'border-tactical bg-tactical/15 text-tactical'
-                      : 'border-line bg-raised/50 text-muted hover:border-line-strong hover:text-ink',
+                      ? 'bg-accent text-black'
+                      : 'bg-glass text-ink-2 hover:bg-glass-2 hover:text-ink',
                   )}
                 >
                   #{tag}
@@ -405,7 +388,7 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
           </div>
 
           {/* 自定义标签：后端 tags 只校验长度与个数，未限制词表，因此允许自由输入 */}
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2.5 flex gap-2">
             <input
               type="text"
               value={customTag}
@@ -418,24 +401,25 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
               }}
               maxLength={16}
               placeholder="自定义标签，回车添加"
-              className={cn(inputClass(false), 'h-8 text-xs')}
+              className={cn(inputClass(), 'h-9 py-0 text-[13px]')}
             />
             <button
               type="button"
               onClick={addCustomTag}
               disabled={values.tags.length >= TAG_MAX_COUNT}
+              aria-label="添加标签"
               className={cn(
-                'shrink-0 rounded-md border border-line bg-raised px-2.5 text-xs font-semibold',
-                'text-muted transition-colors hover:border-line-strong hover:text-ink',
+                'press grid h-9 w-9 shrink-0 place-items-center rounded-control bg-glass text-ink-2',
+                `transition-all duration-300 ${EASE} hover:bg-glass-2 hover:text-ink`,
                 'disabled:cursor-not-allowed disabled:opacity-40',
               )}
             >
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              <Plus className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 
           {values.tags.length > 0 && (
-            <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[11px] text-dim">
+            <p className="mt-2 flex flex-wrap items-center gap-1 text-[11px] text-ink-3">
               <Hash className="h-3 w-3" aria-hidden="true" />
               已选：{values.tags.join('、')}
             </p>
@@ -465,16 +449,13 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
         {(submitError || errorList.length > 0) && (
           <div
             role="alert"
-            className="flex gap-2.5 rounded-lg border border-danger/35 bg-danger/8 px-3.5 py-3"
+            className="flex gap-2.5 rounded-panel border border-danger/30 bg-danger/8 px-3.5 py-3"
           >
-            <CircleAlert
-              className="mt-px h-4 w-4 shrink-0 text-danger"
-              aria-hidden="true"
-            />
-            <div className="min-w-0 text-xs leading-relaxed">
+            <CircleAlert className="mt-px h-4 w-4 shrink-0 text-danger" aria-hidden="true" />
+            <div className="min-w-0 text-[12px] leading-relaxed">
               <p className="font-semibold text-ink">{submitError ?? '请修正以下问题：'}</p>
               {errorList.length > 0 && (
-                <ul className="mt-1 list-inside list-disc space-y-0.5 text-muted">
+                <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-ink-2">
                   {errorList.map((message) => (
                     <li key={message}>{message}</li>
                   ))}
@@ -485,8 +466,8 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
         )}
 
         {/* 计数列不可填的说明 —— 避免用户找不到"点赞数"输入框而困惑 */}
-        <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-dim">
-          <Info className="mt-px h-3 w-3 shrink-0" aria-hidden="true" />
+        <p className="flex items-start gap-2 text-[11px] leading-relaxed text-ink-3">
+          <Info className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           点赞数、复制数由系统自动统计，不可手动填写。提交后方案立即公开可见。
         </p>
       </form>
@@ -507,27 +488,16 @@ interface FieldProps {
 function Field({ label, required, error, hint, children }: FieldProps) {
   return (
     <div>
-      <div className="mb-1.5 flex items-baseline justify-between gap-2">
-        <label className="text-xs font-semibold text-muted">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <label className={cn(FIELD_LABEL_CLASS, 'mb-0')}>
           {label}
           {required && <span className="ml-0.5 text-danger">*</span>}
         </label>
-        {hint && <span className="font-mono text-[10px] text-dim">{hint}</span>}
+        {hint && <span className="font-mono text-[10px] text-ink-3">{hint}</span>}
       </div>
       {children}
-      {error && <p className="mt-1 text-[11px] font-medium text-danger">{error}</p>}
+      {error && <p className="mt-1.5 text-[12px] font-medium text-danger">{error}</p>}
     </div>
-  );
-}
-
-function inputClass(invalid: boolean): string {
-  return cn(
-    'w-full rounded-lg border bg-void/60 px-3 py-2 text-sm text-ink',
-    'placeholder:text-dim transition-colors',
-    'focus:outline-none',
-    invalid
-      ? 'border-danger/60 focus:border-danger'
-      : 'border-line hover:border-line-strong focus:border-tactical/60',
   );
 }
 
@@ -591,32 +561,42 @@ function GunPicker({ guns, value, invalid, onSelect, onBlur }: GunPickerProps) {
         aria-haspopup="listbox"
         aria-expanded={open}
         className={cn(
-          'flex w-full items-center justify-between gap-2 rounded-lg border bg-void/60 px-3 py-2',
-          'text-left text-sm transition-colors focus:outline-none',
+          'flex w-full items-center justify-between gap-2 rounded-control border bg-black/25 px-3.5 py-2.5',
+          'text-left text-[14px]',
+          `transition-all duration-300 ${EASE} focus:outline-none`,
           invalid
             ? 'border-danger/60 focus:border-danger'
-            : 'border-line hover:border-line-strong focus:border-tactical/60',
+            : 'border-hairline hover:border-hairline-2 focus:border-hairline-2',
         )}
       >
         {selected ? (
           <span className="flex min-w-0 items-center gap-2">
-            <span className="font-mono font-bold text-tactical">{selected.name}</span>
-            <span className="truncate text-[11px] text-dim">{selected.category_name}</span>
+            <span className="font-mono font-semibold text-accent">{selected.name}</span>
+            <span className="truncate text-[11px] text-ink-3">{selected.category_name}</span>
           </span>
         ) : (
-          <span className="text-dim">请选择枪械</span>
+          <span className="text-ink-3">请选择枪械</span>
         )}
         <ChevronDown
-          className={cn('h-4 w-4 shrink-0 text-dim transition-transform', open && 'rotate-180')}
+          className={cn(
+            'h-4 w-4 shrink-0 text-ink-3 transition-transform duration-300',
+            open && 'rotate-180',
+          )}
           aria-hidden="true"
         />
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-10 mt-1.5 rounded-lg border border-line bg-surface shadow-[0_18px_50px_-16px_rgba(0,0,0,0.9)]">
-          <div className="relative border-b border-line p-2">
+        <div
+          className={cn(
+            'animate-dropdown-in absolute left-0 right-0 top-full z-10 mt-2',
+            'overflow-hidden rounded-panel border border-hairline-2 bg-[rgb(28_28_32_/_0.9)]',
+            'shadow-[0_20px_50px_-12px_rgb(0_0_0_/_0.8)] backdrop-blur-2xl backdrop-saturate-150',
+          )}
+        >
+          <div className="relative border-b border-hairline p-2.5">
             <Search
-              className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-dim"
+              className="pointer-events-none absolute left-5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3"
               aria-hidden="true"
             />
             <input
@@ -625,13 +605,20 @@ function GunPicker({ guns, value, invalid, onSelect, onBlur }: GunPickerProps) {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="搜索枪械名称或分类…"
-              className="h-8 w-full rounded border border-line bg-void/60 pl-8 pr-2 text-xs text-ink placeholder:text-dim focus:border-tactical/60 focus:outline-none"
+              className="h-9 w-full rounded-[10px] bg-black/30 pl-9 pr-3 text-[13px] text-ink placeholder:text-ink-3 focus:outline-none"
             />
           </div>
 
-          <ul role="listbox" className="max-h-56 overflow-y-auto p-1">
+          <ul role="listbox" className="max-h-60 overflow-y-auto p-1.5">
             {filtered.length === 0 && (
-              <li className="px-3 py-6 text-center text-xs text-dim">没有匹配的枪械</li>
+              /* 优雅的无数据空状态：给出"下一步该做什么"而不是只说没有 */
+              <li className="flex flex-col items-center gap-1.5 px-4 py-8 text-center">
+                <Search className="h-6 w-6 text-ink-3" strokeWidth={1.5} aria-hidden="true" />
+                <p className="text-[13px] font-medium text-ink-2">没有匹配的枪械</p>
+                <p className="text-[11px] leading-relaxed text-ink-3">
+                  换个关键字试试，或先切换到「全部」分类查看完整枪械库。
+                </p>
+              </li>
             )}
             {filtered.map((gun) => (
               <li key={gun.id}>
@@ -645,18 +632,19 @@ function GunPicker({ guns, value, invalid, onSelect, onBlur }: GunPickerProps) {
                     setKeyword('');
                   }}
                   className={cn(
-                    'flex w-full items-center justify-between gap-2 rounded px-2.5 py-2 text-left',
-                    'text-xs transition-colors',
+                    'flex w-full items-center justify-between gap-2 rounded-[10px] px-3 py-2 text-left',
+                    'text-[13px]',
+                    `transition-colors duration-200 ${EASE}`,
                     gun.id === value
-                      ? 'bg-tactical/15 text-tactical'
-                      : 'text-muted hover:bg-raised hover:text-ink',
+                      ? 'bg-accent/18 text-accent'
+                      : 'text-ink-2 hover:bg-glass hover:text-ink',
                   )}
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="font-mono font-bold">{gun.name}</span>
-                    <span className="truncate text-[10px] text-dim">{gun.category_name}</span>
+                    <span className="font-mono font-semibold">{gun.name}</span>
+                    <span className="truncate text-[11px] text-ink-3">{gun.category_name}</span>
                   </span>
-                  <span className="shrink-0 font-mono text-[10px] text-dim">
+                  <span className="shrink-0 font-mono text-[10px] text-ink-3">
                     {gun.build_count} 方案
                   </span>
                 </button>

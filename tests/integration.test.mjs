@@ -118,13 +118,13 @@ test('建库：5 个 SQL 脚本按序执行成功，无语法与依赖错误', a
   }
 });
 
-test('种子数据：6 个分类 / 59 把枪械 / 6 个方案', async () => {
+test('种子数据：6 个分类 / 60 把枪械 / 6 个方案', async () => {
   const r = await db.query(`SELECT
       (SELECT count(*) FROM public.gun_categories)::int AS categories,
       (SELECT count(*) FROM public.guns)::int           AS guns,
       (SELECT count(*) FROM public.builds)::int         AS builds`);
   assert.equal(r.rows[0].categories, 6);
-  assert.equal(r.rows[0].guns, 59);
+  assert.equal(r.rows[0].guns, 60);
   assert.equal(r.rows[0].builds, 6);
 });
 
@@ -595,7 +595,7 @@ test('视图：v_category_stats 统计各分类枪械与方案数量', async () 
   assert.equal(r.rows.length, 6);
   assert.equal(r.rows[0].category_name, '突击步枪');
   const totalGuns = r.rows.reduce((s, x) => s + x.gun_count, 0);
-  assert.equal(totalGuns, 59, '分类枪械数之和应等于枪械总数');
+  assert.equal(totalGuns, 60, '分类枪械数之和应等于枪械总数');
 });
 
 test('视图：security_invoker 生效，匿名查询不会绕过 RLS 看到草稿', async () => {

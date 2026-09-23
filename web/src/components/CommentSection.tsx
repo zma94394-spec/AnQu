@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ChevronDown, CircleAlert, Loader2, MessageSquare, Send } from 'lucide-react';
+import { ChevronDown, CircleAlert, Loader2, LogIn, MessageSquare, Send } from 'lucide-react';
 
+import { useAppShell } from '../lib/appShell';
+import { useAuth } from '../lib/auth';
 import { ApiError, createComment, fetchComments } from '../lib/api';
 import { cn } from '../lib/cn';
 import { formatRelativeTime } from '../lib/format';
@@ -9,6 +11,7 @@ import { COMMENT_MAX_LENGTH } from '../types/api';
 import type { CommentDTO, Pagination } from '../types/api';
 
 const PAGE_SIZE = 20;
+const EASE = 'ease-[cubic-bezier(0.25,1,0.5,1)]';
 
 export interface CommentSectionProps {
   buildId: string;
@@ -17,6 +20,9 @@ export interface CommentSectionProps {
 }
 
 export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps) {
+  const { openAuth } = useAppShell();
+  const { user } = useAuth();
+
   const [comments, setComments] = useState<CommentDTO[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,8 +32,6 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  /** 是否因未登录而被拒。与普通失败区分开，因为这不是"出错了"而是"缺前置条件" */
-  const [needsAuth, setNeedsAuth] = useState(false);
 
   /* -------------------------------------------------------- 拉取列表 */
 
@@ -100,15 +104,14 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
         const created = await createComment(buildId, trimmed);
         setComments((prev) => [created, ...prev]);
         setContent('');
-        setNeedsAuth(false);
         onCommentAdded();
       } catch (err) {
         // ⚠️ 后端该端点挂了 requireAuth，未登录返回 401 AUTH_REQUIRED。
         // 这必须与"网络失败/服务器错误"区别对待 —— 前者是缺前置条件，
         // 提示用户"重试"是没意义的，只会让人反复点。
         if (err instanceof ApiError && err.code === 'AUTH_REQUIRED') {
-          setNeedsAuth(true);
-          setSubmitError('发表评论需要先登录。');
+          setSubmitError('登录状态已失效，请重新登录后再发表评论。');
+          openAuth();
         } else if (err instanceof ApiError) {
           setSubmitError(err.message);
         } else {
@@ -118,123 +121,129 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
         setSubmitting(false);
       }
     },
-    [buildId, content, onCommentAdded, submitting],
+    [buildId, content, onCommentAdded, openAuth, submitting],
   );
 
   const remaining = COMMENT_MAX_LENGTH - content.length;
 
   return (
-    <section aria-label="评论区" className="mt-6">
-      <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
-        <MessageSquare className="h-4 w-4 text-tactical" aria-hidden="true" />
+    <section aria-label="评论区" className="mt-8">
+      <h2 className="flex items-center gap-2.5 text-[17px] font-semibold tracking-[-0.022em] text-ink">
+        <MessageSquare className="h-4 w-4 text-accent" aria-hidden="true" />
         评论
         {pagination && (
-          <span className="font-mono text-xs font-normal text-dim">{pagination.total}</span>
+          <span className="font-mono text-[13px] font-normal text-ink-3">{pagination.total}</span>
         )}
       </h2>
 
       {/* ------------------------------------------------ 发表评论 */}
-      <form onSubmit={handleSubmit} className="mt-3">
-        <textarea
-          value={content}
-          onChange={(event) => {
-            setContent(event.target.value);
-            if (submitError) setSubmitError(null);
-          }}
-          rows={3}
-          maxLength={COMMENT_MAX_LENGTH + 50}
-          placeholder="说说这套改枪的实际手感，或者补充一句子弹建议…"
-          aria-label="评论内容"
-          className={cn(
-            'w-full rounded-lg border border-line bg-void/60 px-3 py-2.5',
-            'text-sm leading-relaxed text-ink placeholder:text-dim',
-            'transition-colors hover:border-line-strong focus:border-tactical/60 focus:outline-none',
+      {user ? (
+        <form onSubmit={handleSubmit} className="mt-4">
+          <textarea
+            value={content}
+            onChange={(event) => {
+              setContent(event.target.value);
+              if (submitError) setSubmitError(null);
+            }}
+            rows={3}
+            maxLength={COMMENT_MAX_LENGTH + 50}
+            placeholder="说说这套改枪的实际手感，或者补充一句子弹建议…"
+            aria-label="评论内容"
+            className={cn(
+              'w-full rounded-panel border border-hairline bg-glass px-4 py-3',
+              'text-[14px] leading-relaxed text-ink placeholder:text-ink-3',
+              `transition-all duration-300 ${EASE}`,
+              'hover:bg-glass-2 focus:border-hairline-2 focus:bg-glass-2 focus:outline-none',
+            )}
+          />
+
+          <div className="mt-2.5 flex items-center justify-between gap-3">
+            <span
+              className={cn(
+                'font-mono text-[11px]',
+                remaining < 0 ? 'text-danger' : remaining < 50 ? 'text-accent' : 'text-ink-3',
+              )}
+            >
+              {remaining}
+            </span>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className={cn(
+                'press flex items-center gap-1.5 rounded-chip bg-accent px-4 py-2',
+                'text-[13px] font-semibold text-black',
+                `transition-all duration-300 ${EASE}`,
+                'hover:bg-accent-2 hover:shadow-[0_6px_20px_rgb(255_159_10_/_0.4)]',
+                'disabled:cursor-wait disabled:opacity-60',
+              )}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  提交中…
+                </>
+              ) : (
+                <>
+                  <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                  发表评论
+                </>
+              )}
+            </button>
+          </div>
+
+          {submitError && (
+            <p
+              role="alert"
+              className="mt-2.5 flex items-start gap-1.5 rounded-panel border border-danger/30 bg-danger/8 px-3.5 py-2.5 text-[12px] leading-relaxed text-ink-2"
+            >
+              <CircleAlert className="mt-px h-3.5 w-3.5 shrink-0 text-danger" aria-hidden="true" />
+              {submitError}
+            </p>
           )}
-        />
-
-        <div className="mt-2 flex items-center justify-between gap-3">
-          <span
-            className={cn(
-              'font-mono text-[11px]',
-              remaining < 0 ? 'text-danger' : remaining < 50 ? 'text-tactical' : 'text-dim',
-            )}
-          >
-            {remaining}
-          </span>
-
+        </form>
+      ) : (
+        /* 未登录时不展示表单：让用户填完再被 401 打回来是纯粹的浪费。
+           直接给出登录入口，语义更清楚。 */
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-panel border border-hairline bg-glass px-4 py-3.5">
+          <span className="text-[13px] text-ink-2">登录后即可发表评论与点赞</span>
           <button
-            type="submit"
-            disabled={submitting}
+            type="button"
+            onClick={openAuth}
             className={cn(
-              'flex items-center gap-1.5 rounded-md bg-tactical px-3.5 py-1.5',
-              'text-xs font-bold text-void transition-colors',
-              'hover:bg-tactical-deep hover:text-ink',
-              'disabled:cursor-wait disabled:opacity-60',
+              'press flex items-center gap-1.5 rounded-chip bg-accent px-4 py-2',
+              'text-[13px] font-semibold text-black',
+              `transition-all duration-300 ${EASE} hover:bg-accent-2`,
             )}
           >
-            {submitting ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                提交中…
-              </>
-            ) : (
-              <>
-                <Send className="h-3.5 w-3.5" aria-hidden="true" />
-                发表评论
-              </>
-            )}
+            <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
+            登录
           </button>
         </div>
-
-        {submitError && (
-          <p
-            role="alert"
-            className={cn(
-              'mt-2 flex items-start gap-1.5 rounded-lg border px-3 py-2 text-[11px] leading-relaxed',
-              needsAuth
-                ? 'border-tactical/40 bg-tactical/8 text-muted'
-                : 'border-danger/35 bg-danger/8 text-muted',
-            )}
-          >
-            <CircleAlert
-              className={cn('mt-px h-3.5 w-3.5 shrink-0', needsAuth ? 'text-tactical' : 'text-danger')}
-              aria-hidden="true"
-            />
-            <span>
-              {submitError}
-              {needsAuth && (
-                <span className="mt-0.5 block text-dim">
-                  本站的登录功能尚未接入，当前可以正常浏览评论。接入 Supabase Auth
-                  后此处会显示登录按钮，无需改动其他逻辑。
-                </span>
-              )}
-            </span>
-          </p>
-        )}
-      </form>
+      )}
 
       {/* ------------------------------------------------ 评论列表 */}
-      <div className="mt-5">
+      <div className="mt-6">
         {loading && (
           <div className="space-y-3" aria-hidden="true">
             {Array.from({ length: 2 }, (_, i) => (
-              <div key={i} className="rounded-lg border border-line bg-surface/40 p-3.5">
+              <div key={i} className="rounded-panel border border-hairline bg-glass p-4">
                 <div className="skeleton h-3 w-24 rounded" />
-                <div className="skeleton mt-2.5 h-3 w-full rounded" />
-                <div className="skeleton mt-1.5 h-3 w-2/3 rounded" />
+                <div className="skeleton mt-3 h-3 w-full rounded" />
+                <div className="skeleton mt-2 h-3 w-2/3 rounded" />
               </div>
             ))}
           </div>
         )}
 
         {!loading && listError && (
-          <p role="alert" className="text-xs text-danger">
+          <p role="alert" className="text-[13px] text-danger">
             {listError}
           </p>
         )}
 
         {!loading && !listError && comments.length === 0 && (
-          <p className="rounded-lg border border-dashed border-line bg-surface/40 px-4 py-8 text-center text-xs text-dim">
+          <p className="rounded-panel border border-dashed border-hairline bg-glass/60 px-4 py-10 text-center text-[13px] text-ink-3">
             还没有评论，来说说这套改枪的实际手感吧。
           </p>
         )}
@@ -244,17 +253,17 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
             {comments.map((comment) => (
               <li
                 key={comment.id}
-                className="rounded-lg border border-line bg-surface/50 px-3.5 py-3"
+                className="rounded-panel border border-hairline bg-glass px-4 py-3.5"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-semibold text-muted">
+                  <span className="text-[13px] font-semibold text-ink-2">
                     {comment.author?.nickname ?? '匿名指挥官'}
                   </span>
-                  <span className="shrink-0 text-[11px] text-dim">
+                  <span className="shrink-0 text-[11px] text-ink-3">
                     {formatRelativeTime(comment.created_at)}
                   </span>
                 </div>
-                <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink">
+                <p className="mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink">
                   {comment.content}
                 </p>
               </li>
@@ -268,9 +277,10 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
             onClick={loadMore}
             disabled={loadingMore}
             className={cn(
-              'mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-line',
-              'bg-surface/50 py-2 text-xs font-semibold text-muted transition-colors',
-              'hover:border-line-strong hover:text-ink disabled:opacity-50',
+              'press mt-3.5 flex w-full items-center justify-center gap-1.5 rounded-panel',
+              'bg-glass py-2.5 text-[13px] font-semibold text-ink-2',
+              `transition-all duration-300 ${EASE} hover:bg-glass-2 hover:text-ink`,
+              'disabled:opacity-50',
             )}
           >
             {loadingMore ? (

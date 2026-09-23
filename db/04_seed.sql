@@ -2,7 +2,7 @@
 --  暗区突围 · 改枪码分享站  ——  种子数据 (04_seed.sql)
 --  执行   : psql "$DATABASE_URL" -f db/04_seed.sql   （在 02_rls.sql 之后）
 --  幂等性 : 全部使用 ON CONFLICT DO NOTHING / DO UPDATE，可反复执行
---  内容   : 6 个分类 / 59 把枪械 / 6 个改枪方案 / 2 条评论
+--  内容   : 6 个分类 / 60 把枪械 / 6 个改枪方案 / 2 条评论
 --
 --  ⚠️ 上线前必须处理的两处占位数据：
 --    1. icon_url —— 占位域名 assets.example-anqu.com，需替换为真实图床/CDN 地址
@@ -44,6 +44,7 @@ INSERT INTO public.guns (name, name_en, slug, category, icon_url, sort_order) VA
   -- 以下 2 把为预设方案所需的补充枪械（原种子库缺失，游戏内确实存在）
   ('AK-74N',     'AK-74N',     'ak-74n',     'assault_rifle', 'https://assets.example-anqu.com/guns/ak-74n.webp',     26),
   ('FAL',        'FAL',        'fal',        'assault_rifle', 'https://assets.example-anqu.com/guns/fal.webp',        27),
+  ('ACE32',      'ACE32',      'ace32',      'assault_rifle', 'https://assets.example-anqu.com/guns/ace32.webp',      28),
 
   -- ===== 冲锋枪 =====
   ('MP5',        'MP5',        'mp5',        'smg',           'https://assets.example-anqu.com/guns/mp5.webp',        10),
@@ -213,7 +214,7 @@ INSERT INTO public.comments (id, build_id, author_id, content) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ---------------------------------------------------------- 5. 校验
--- 执行后应返回：6 个分类 / 59 把枪 / 6 个方案 / 2 条评论
+-- 执行后应返回：6 个分类 / 60 把枪 / 6 个方案 / 2 条评论
 -- SELECT
 --   (SELECT count(*) FROM public.gun_categories) AS categories,
 --   (SELECT count(*) FROM public.guns)           AS guns,
