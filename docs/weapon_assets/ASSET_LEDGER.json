@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "$comment": "ASSET-007 main-only gate bootstrap. 本分支只有 web/public/favicon.ico 这一张真实存在的图片；UI-020/ImageGen 素材不在本分支，也不得凭 integrated 台账跨分支登记。新增资产时只追加本分支真实存在的文件。",
+  "$status_vocabulary": {
+    "note": "复用 docs/weapon_assets/LICENSE_DECISION_RULES.md §1 的三个判定，并额外保留 UNKNOWN；UNKNOWN 与待确认同等阻断发布。",
+    "values": {
+      "AUTHORIZED": "条款/凭证支持公开展示（第三方素材需 A1–A4 全满足；本项目原创素材无第三方权利，属此类）",
+      "NEEDS_CLARIFICATION": "已有回复但 A1–A4 有一条不能由原文支撑；阻断发布",
+      "NOT_AUTHORIZED": "明确拒绝 / 限定别的用途 / 无回复 / 只在别处被使用；阻断发布",
+      "UNKNOWN": "证据不足，尚无法按现有规则判定；阻断发布"
+    }
+  },
+  "assets": [
+    {
+      "asset_id": "site-favicon",
+      "source_path": "web/public/favicon.ico",
+      "build_artifacts": ["web/dist/favicon.ico"],
+      "dist_policy": "PACKAGED",
+      "sha256": "fa66e1dae2126c5f33e94bb8960b22b1b0988f0c8bdfb78a446dabe779eef66b",
+      "bytes": 2030,
+      "width": 32,
+      "height": 32,
+      "format": "ICO",
+      "purpose": "站点图标（浏览器标签页/收藏）",
+      "category": "PROJECT_ORIGINAL_OR_AUTHORIZED",
+      "evidence_paths": [
+        "docs/weapon_assets/CANDIDATES.md",
+        "web/src/components/BrandMark.tsx"
+      ],
+      "distribution_status": "AUTHORIZED",
+      "status_basis": "本站品牌砖：几何符号由 BrandMark.tsx 原创绘制（CANDIDATES.md 亦记「favicon.ico 是本站品牌砖」）。不含任何第三方内容，无外部权利人，故不涉及 A1–A4 的书面授权。",
+      "restrictions": [],
+      "open_questions": []
+    }
+  ]
+}
