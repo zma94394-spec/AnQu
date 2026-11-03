@@ -21,7 +21,7 @@ export interface AuthDialogProps {
 type Mode = 'signin' | 'signup';
 
 export function AuthDialog({ onClose, onSuccess }: AuthDialogProps) {
-  const { signIn, signUp, isDemo } = useAuth();
+  const { signIn, signUp, isDemo, previewReadOnly } = useAuth();
 
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
@@ -197,17 +197,27 @@ export function AuthDialog({ onClose, onSuccess }: AuthDialogProps) {
           {isSignUp ? '已有账号？去登录' : '还没有账号？去注册'}
         </button>
 
-        {isDemo && (
+        {previewReadOnly ? (
           <p className="flex items-start gap-2 rounded-panel border border-hairline bg-black/25 px-3.5 py-2.5 text-[11px] leading-relaxed text-ink-3">
             <Info className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>
-              <strong className="text-ink-2">演示模式</strong>：未配置
-              <code className="mx-1 font-mono">VITE_SUPABASE_URL</code>/
-              <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>，
-              当前使用本地演示会话（任意合法邮箱 + 6 位以上密码即可登录，
-              仅保存在本机浏览器，不会发送到任何服务器）。
+              <strong className="text-ink-2">只读预览</strong>：登录仅使用本地演示会话，
+              不会连接 Supabase，也不会产生真实会话；评论、点赞与投稿仍会被禁用。
             </span>
           </p>
+        ) : (
+          isDemo && (
+            <p className="flex items-start gap-2 rounded-panel border border-hairline bg-black/25 px-3.5 py-2.5 text-[11px] leading-relaxed text-ink-3">
+              <Info className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>
+                <strong className="text-ink-2">演示模式</strong>：未配置
+                <code className="mx-1 font-mono">VITE_SUPABASE_URL</code>/
+                <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>，
+                当前使用本地演示会话（任意合法邮箱 + 6 位以上密码即可登录，
+                仅保存在本机浏览器，不会发送到任何服务器）。
+              </span>
+            </p>
+          )
         )}
       </form>
     </ModalShell>

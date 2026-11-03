@@ -24,13 +24,20 @@ export interface AppShellValue {
   guns: GunDTO[];
   categories: CategoryDTO[];
   /**
+   * 全局字典（guns / categories）是否仍在加载。
+   * 依赖字典做"存在性判断"的页面（如 `/weapons/:slug`）必须先看这个标志，
+   * 否则会把"还没加载完"误判成"不存在"。
+   */
+  dictionaryLoading: boolean;
+  /**
    * 数据版本号。发布新方案后由外壳自增，列表页据此强制重取 ——
    * 因为新方案可能不改变任何 URL 参数（例如当前就是"全部 + 最新"），
    * 光靠 URL 变化触发不了重新请求。
    */
   dataVersion: number;
   notify: (notice: Notice) => void;
-  openPublish: () => void;
+  /** 打开投稿抽屉；传入 gunId 时预选对应枪械 */
+  openPublish: (initialGunId?: string) => void;
   /**
    * 打开登录弹窗。
    * 暴露给评论区使用：未登录时应当直接给出"登录后发表评论"的入口，

@@ -15,7 +15,16 @@ import {
   Target,
 } from 'lucide-react';
 
-import { ApiError, createBuild } from '../lib/api';
+import {
+  ApiError,
+  USE_MOCK,
+  createBuild,
+  isPreviewReadOnly,
+  isPreviewReadOnlyError,
+  notifyPreviewBlocked,
+  PREVIEW_READ_ONLY_MESSAGE,
+  submitViaLegacyBuildsEndpoint,
+} from '../lib/apiPublic';
 import { cn } from '../lib/cn';
 import { formatCoins } from '../lib/format';
 import {
@@ -34,12 +43,14 @@ import {
 } from '../lib/validation';
 import type { FieldErrors, PublishFormValues } from '../lib/validation';
 import { TAG_MAX_COUNT, TAG_VOCABULARY } from '../types/ui';
-import type { BuildDTO, GunDTO, Platform, ValidationIssue } from '../types/api';
+import type { BuildDTO, GunDTO, Platform, SubmissionQueueReceipt, ValidationIssue } from '../types/api';
 import { ModalShell } from './ModalShell';
 
 export interface PublishDialogProps {
   /** 枪械字典，来自 App 已加载的 GET /api/guns，避免弹窗内重复请求 */
   guns: GunDTO[];
+  /** 从枪械详情打开时预选的枪械 id */
+  initialGunId?: string | null;
   onClose: () => void;
   onCreated: (build: BuildDTO) => void;
 }
@@ -56,13 +67,18 @@ const PLATFORM_OPTIONS: Array<{ value: Platform; label: string; icon: typeof Sma
  * 由父组件**条件渲染**（`{open && <PublishDialog/>}`），
  * 因此每次打开都是全新挂载 —— 表单状态天然重置，不需要额外的 reset 逻辑。
  */
-export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) {
-  const [values, setValues] = useState<PublishFormValues>(EMPTY_FORM);
+export function PublishDialog({ guns, initialGunId, onClose, onCreated }: PublishDialogProps) {
+  const [values, setValues] = useState<PublishFormValues>(() => ({
+    ...EMPTY_FORM,
+    gun_id: initialGunId ?? '',
+  }));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Partial<Record<keyof PublishFormValues, boolean>>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [customTag, setCustomTag] = useState('');
+  /** 真实后端下旧入口只做排队；null = 还没提交过 */
+  const [queued, setQueued] = useState<SubmissionQueueReceipt | null>(null);
 
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -156,6 +172,12 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
       event.preventDefault();
       if (submitting) return;
 
+      if (isPreviewReadOnly()) {
+        notifyPreviewBlocked('投稿');
+        setSubmitError(PREVIEW_READ_ONLY_MESSAGE);
+        return;
+      }
+
       const nextErrors = validateForm(values);
       setErrors(nextErrors);
       setTouched(
@@ -180,10 +202,18 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
       setSubmitError(null);
 
       try {
-        const created = await createBuild(toCreateBuildInput(values));
-        onCreated(created);
+        if (USE_MOCK) {
+          // 演示数据没有后端也没有审核台，仍旧把内容插进本地列表 —— 这是 MOCK 的既有语义。
+          onCreated(await createBuild(toCreateBuildInput(values)));
+          return;
+        }
+        // 真实后端：旧入口自 P5D-B 起只做排队（202），不再产出 published 方案，
+        // 所以这里不调用 onCreated（父组件的"发布成功/已加入改枪库"提示在新语义下是假话）。
+        setQueued(await submitViaLegacyBuildsEndpoint(toCreateBuildInput(values)));
       } catch (err) {
-        if (err instanceof ApiError) {
+        if (isPreviewReadOnlyError(err)) {
+          setSubmitError(err.message);
+        } else if (err instanceof ApiError) {
           // 服务端校验失败：把字段级 details 回填到对应输入框
           if (err.code === 'VALIDATION_ERROR' && Array.isArray(err.details)) {
             const serverErrors: FieldErrors = {};
@@ -199,6 +229,8 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
           } else if (err.code === 'INVALID_GUN_ID') {
             setErrors((prev) => ({ ...prev, gun_id: err.message }));
             setSubmitError(err.message);
+          } else if (err.code === 'AUTH_REQUIRED') {
+            setSubmitError('投稿需要先登录：待审的内容必须能追溯到提交人，否则无法回话与追责。');
           } else {
             setSubmitError(err.message);
           }
@@ -224,15 +256,45 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
 
   /* ---------------------------------------------------------- 渲染 */
 
+  // 排队成功后的诚实回执：只说"等待审核 / 尚未验证"，不出现发布、已验证、推荐这类结论。
+  if (queued) {
+    return (
+      <ModalShell
+        title="已进入人工审核队列"
+        description="审核通过之前，这条内容不会出现在方案库或热门榜；能否在客户端导入仍未验证。"
+        icon={Info}
+        onClose={onClose}
+        panelRef={panelRef}
+        variant="drawer"
+        footer={
+          <button type="button" onClick={onClose} className={primaryButtonClass()}>知道了</button>
+        }
+      >
+        <div className="space-y-3 text-sm leading-relaxed text-ink-2">
+          <p className="break-all font-mono text-xs text-ink-1">{queued.submission.code}</p>
+          <dl className="grid gap-1 text-xs text-ink-3 sm:grid-cols-2">
+            <div><dt className="inline">审核状态：</dt><dd className="inline">等待人工审核</dd></div>
+            <div><dt className="inline">客户端验证：</dt><dd className="inline">尚未验证</dd></div>
+            <div><dt className="inline">公开库：</dt><dd className="inline">未入库</dd></div>
+            <div><dt className="inline">跨区服兼容：</dt><dd className="inline">{queued.submission.cross_server_compatibility}（本站未测）</dd></div>
+          </dl>
+          {queued.duplicate
+            && <p className="text-xs text-ink-3">这串字节你之前已经投过，未重复入队。</p>}
+          {queued.next_step && <p className="text-xs text-ink-3">{queued.next_step}</p>}
+        </div>
+      </ModalShell>
+    );
+  }
+
   return (
     <ModalShell
-      title="发布改枪方案"
+      title={USE_MOCK ? '投稿方案（演示）' : '投稿方案（先审核后公开）'}
       description="改枪码请从游戏内「改枪 → 分享」完整复制，不要手动输入以免出错。"
       icon={Target}
       busy={submitting}
       onClose={onClose}
       panelRef={panelRef}
-      maxWidthClass="max-w-2xl"
+      variant="drawer"
       footer={
         <>
           <button type="button" onClick={onClose} disabled={submitting} className={secondaryButtonClass()}>
@@ -249,7 +311,7 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
             ) : (
               <>
                 <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />
-                确认发布
+                {USE_MOCK ? '确认发布' : '提交到人工审核'}
               </>
             )}
           </button>
@@ -307,7 +369,7 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
         </Field>
 
         {/* ---------------------------------------- 造价 + 平台 */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4">
           <Field label="预估造价" required error={errors.estimated_cost}>
             <div className="relative">
               <input
@@ -345,8 +407,8 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
                     onClick={() => setField('platform', option.value)}
                     aria-pressed={active}
                     className={cn(
-                      'press flex flex-1 items-center justify-center gap-1.5 rounded-[10px] px-2 py-2',
-                      'text-[13px] font-medium',
+                      'press flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-control px-2 py-2',
+                      'text-[12px] font-medium',
                       `transition-all duration-300 ${EASE}`,
                       active
                         ? 'bg-glass-3 text-ink shadow-[0_2px_8px_rgb(0_0_0_/_0.28)]'
@@ -362,6 +424,12 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
           </Field>
         </div>
 
+        <details className="rounded-hud border border-hairline px-3.5 py-2.5">
+          <summary className="cursor-pointer list-none text-[12px] font-medium text-ink-2">
+            更多信息（选填）：标签与方案说明
+          </summary>
+
+          <div className="mt-4 space-y-4">
         {/* ---------------------------------------- 标签 */}
         <Field label="标签" error={errors.tags} hint={`${values.tags.length}/${TAG_MAX_COUNT}`}>
           <div className="flex flex-wrap gap-1.5">
@@ -374,11 +442,11 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
                   onClick={() => toggleTag(tag)}
                   aria-pressed={active}
                   className={cn(
-                    'press rounded-chip px-2.5 py-1 text-[12px] font-medium',
-                    `transition-all duration-300 ${EASE}`,
+                    'press rounded-hud border px-2.5 py-1 text-[11px] font-medium',
+                    `transition-colors duration-200 ${EASE}`,
                     active
-                      ? 'bg-accent text-black'
-                      : 'bg-glass text-ink-2 hover:bg-glass-2 hover:text-ink',
+                      ? 'border-accent-line bg-accent/[0.1] text-ink'
+                      : 'border-hairline bg-transparent text-ink-2 hover:border-hairline-2 hover:text-ink',
                   )}
                 >
                   #{tag}
@@ -444,6 +512,8 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
             className={cn(inputClass(Boolean(errors.description)), 'resize-y leading-relaxed')}
           />
         </Field>
+          </div>
+        </details>
 
         {/* ---------------------------------------- 错误汇总 */}
         {(submitError || errorList.length > 0) && (
@@ -465,10 +535,10 @@ export function PublishDialog({ guns, onClose, onCreated }: PublishDialogProps) 
           </div>
         )}
 
-        {/* 计数列不可填的说明 —— 避免用户找不到"点赞数"输入框而困惑 */}
         <p className="flex items-start gap-2 text-[11px] leading-relaxed text-ink-3">
           <Info className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          点赞数、复制数由系统自动统计，不可手动填写。提交后方案立即公开可见。
+          点赞与复制由系统统计，不可填写。演示模式只写本地演示数据；真实后端提交后先进入
+          人工审核队列，审核通过前不会公开。
         </p>
       </form>
     </ModalShell>

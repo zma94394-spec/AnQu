@@ -20,41 +20,76 @@
  *    --radius-card     ->  rounded-card
  * ========================================================================== */
 @theme {
-  /* ---- 底色：纯黑起手，Apple 深色模式的基准 ---- */
-  --color-base: #000000;
-  --color-base-2: #0a0a0c;
+  /* ---- 底色：石墨黑，不做纯黑；面板靠一层比一层亮表达层级 ---- */
+  --color-base: #10151b;
+  --color-base-2: #151b22;
 
-  /* ---- 玻璃层：半透明白，叠在深色底上形成材质 ---- */
-  --color-glass: rgb(255 255 255 / 0.08);
-  --color-glass-2: rgb(255 255 255 / 0.12);
-  --color-glass-3: rgb(255 255 255 / 0.18);
+  /* ---- 玻璃层：用中性白的低不透明度，不引入第二种色相 ---- */
+  --color-glass: rgb(238 241 244 / 0.045);
+  --color-glass-2: rgb(238 241 244 / 0.075);
+  --color-glass-3: rgb(238 241 244 / 0.11);
 
-  /* ---- 描边：Apple 的 hairline，1px 且极低对比 ---- */
-  --color-hairline: rgb(255 255 255 / 0.15);
-  --color-hairline-2: rgb(255 255 255 / 0.3);
+  /* ---- 描边：1px 低对比 hairline ---- */
+  --color-hairline: rgb(238 241 244 / 0.1);
+  --color-hairline-2: rgb(238 241 244 / 0.18);
 
-  /* ---- 文字：同一白色的三级不透明度 ---- */
-  --color-ink: rgb(255 255 255 / 0.96);
-  --color-ink-2: rgb(255 255 255 / 0.64);
-  --color-ink-3: rgb(255 255 255 / 0.4);
+  /* ---- 文字：雾白三级不透明度 ---- */
+  --color-ink: #eef1f4;
+  --color-ink-2: rgb(238 241 244 / 0.64);
+  --color-ink-3: rgb(238 241 244 / 0.42);
 
-  /* ---- 强调色：保留品牌战术黄，取 Apple 深色模式 systemOrange 的色相 ---- */
-  --color-accent: #ff9f0a;
-  --color-accent-2: #ffb340;
-  --color-signal: #30d158;
-  --color-danger: #ff453a;
+  /* ---- 强调色：只在交互点出现的一小片暖琥珀 ---- */
+  --color-accent: #e0a46a;
+  --color-accent-2: #f2c08b;
+  --color-accent-line: rgb(224 164 106 / 0.36);
+  --color-signal: #93c5a8;
+  --color-danger: #e29a9a;
 
-  /* ---- 圆角：苹果的大曲率（squircle 的实用近似）---- */
-  --radius-card: 22px;
-  --radius-panel: 18px;
-  --radius-control: 14px;
-  --radius-chip: 999px;
+  /* ---- 圆角：统一的小曲率，按钮/卡片/面板不再各用一套 ---- */
+  --radius-card: 3px;
+  --radius-panel: 3px;
+  --radius-control: 3px;
+  --radius-chip: 3px;
 
-  /* ---- 字体：Apple 系统字体栈 ---- */
+  /* ---- 受光边缘：只留一道极淡的顶光 ---- */
+  --color-edge-top: rgb(238 241 244 / 0.12);
+  --color-edge-bottom: rgb(238 241 244 / 0.03);
+
+  /* ---- 空间曲线：只用于大范围位移 ---- */
+  --ease-spatial: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ---- 字体：系统字体栈 ---- */
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'PingFang SC',
     'Helvetica Neue', Helvetica, Arial, sans-serif;
   --font-mono: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ============================================================================
+   *  石墨 / 雾白 / 暖琥珀层
+   *
+   *  这些令牌保留原有变量名（Header / BuildCard / ModalShell / 武器库都在用），
+   *  但色值统一到 UI-013 已确认的战术极简配色上。
+   * ========================================================================== */
+
+  --color-void: #0d1217;
+  --color-carbon: #151b22;
+  --color-steel: #242c34;
+  --color-panel: #242c34;
+
+  /* ---- 暖琥珀只允许出现在交互点与 1px 细线上 ---- */
+  --color-hud: #e0a46a;
+  --color-hud-dim: rgb(224 164 106 / 0.12);
+
+  /* ---- 统一小曲率；方案卡沿用 3px 的视觉基线 ---- */
+  --radius-hud: 3px;
+  --radius-blade: 3px;
+
+  /* ---- 间距节奏：整页只用这三档 ---- */
+  --spacing-hud-sm: 3.5rem;
+  --spacing-hud-md: 6rem;
+  --spacing-hud-lg: 9rem;
+
+  --ease-hud: cubic-bezier(0.2, 0.9, 0.15, 1);
 }
 
 /* ============================================================================
@@ -75,17 +110,15 @@
     background-color: var(--color-base);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    /* 字号与行高：Apple 正文偏大、行高偏松，换来呼吸感 */
     font-size: 15px;
     line-height: 1.6;
     letter-spacing: -0.01em;
 
-    /* 「柔和的模糊高光」：两团大半径径向渐变，
-       像有光源在页面后方，避免纯黑背景显得死板 */
+    /* 两团极低对比的石墨光，避免大面积纯色显得死板；
+       不引入彩色，视觉重心留给内容本身。 */
     background-image:
-      radial-gradient(900px 620px at 10% -10%, rgb(255 159 10 / 0.1), transparent 62%),
-      radial-gradient(820px 520px at 92% 2%, rgb(120 160 255 / 0.09), transparent 64%),
-      radial-gradient(700px 500px at 50% 110%, rgb(255 159 10 / 0.05), transparent 60%);
+      radial-gradient(1100px 700px at 78% -18%, rgb(57 67 77 / 0.2), transparent 64%),
+      radial-gradient(900px 620px at 0% 8%, rgb(36 44 52 / 0.18), transparent 62%);
     background-attachment: fixed;
   }
 
@@ -98,8 +131,8 @@
   }
 
   ::selection {
-    background-color: rgb(255 159 10 / 0.3);
-    color: #fff;
+    background-color: rgb(224 164 106 / 0.24);
+    color: var(--color-ink);
   }
 
   /* 滚动条：默认亮色滚动条会破坏整体材质感 */
@@ -111,21 +144,21 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgb(255 255 255 / 0.14);
+    background: rgb(238 241 244 / 0.12);
     border-radius: 9999px;
     border: 3px solid transparent;
     background-clip: content-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgb(255 255 255 / 0.26);
+    background: rgb(238 241 244 / 0.22);
     background-clip: content-box;
   }
 
-  /* 焦点环：只在键盘导航时出现，用强调色而非浏览器默认蓝 */
+  /* 焦点环：键盘导航时清晰可见，颜色与交互强调一致 */
   :focus-visible {
     outline: 2px solid var(--color-accent);
-    outline-offset: 3px;
-    border-radius: 6px;
+    outline-offset: 2px;
+    border-radius: 3px;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -153,26 +186,38 @@
    * 而 Safari 恰恰是这个设计语言最需要正确渲染的浏览器。
    */
   .glass {
-    background-color: rgb(255 255 255 / 0.08);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgb(255 255 255 / 0.15);
+    background-color: rgb(21 27 34 / 0.72);
+    -webkit-backdrop-filter: blur(18px) saturate(120%);
+    backdrop-filter: blur(18px) saturate(120%);
+    border: 1px solid var(--color-hairline);
   }
 
   /** 更实的玻璃：用于弹窗等需要与背景拉开距离的层 */
   .glass-strong {
-    background-color: rgb(30 30 34 / 0.72);
-    -webkit-backdrop-filter: blur(30px) saturate(180%);
-    backdrop-filter: blur(30px) saturate(180%);
-    border: 1px solid rgb(255 255 255 / 0.18);
+    background-color: rgb(16 21 27 / 0.9);
+    -webkit-backdrop-filter: blur(28px) saturate(120%);
+    backdrop-filter: blur(28px) saturate(120%);
+    border: 1px solid var(--color-hairline);
   }
 
   /** 更薄的玻璃：用于顶部导航栏，避免遮挡内容过多 */
   .glass-thin {
-    background-color: rgb(10 10 12 / 0.68);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    backdrop-filter: blur(24px) saturate(180%);
-    border-bottom: 1px solid rgb(255 255 255 / 0.12);
+    background-color: rgb(16 21 27 / 0.78);
+    -webkit-backdrop-filter: blur(22px) saturate(120%);
+    backdrop-filter: blur(22px) saturate(120%);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+
+  /**
+   * UI-019 首页页头：全屏画面要延续到导航后面。
+   * 仍保留 backdrop-filter（e2e 视觉基线读 computed style 断言 blur），
+   * 但把 22px 的重磨砂降到薄雾，避免在画面顶部切出一块玻璃带。
+   */
+  header.home-header {
+    background-color: rgb(11 15 21 / 0.34);
+    -webkit-backdrop-filter: blur(10px) saturate(115%);
+    backdrop-filter: blur(10px) saturate(115%);
+    border-bottom-color: transparent;
   }
 
   /* ------------------------------------------------------------ 层级与动效 */
@@ -182,13 +227,13 @@
    * 起步快、收尾缓，比 `ease` 更"跟手"。
    */
   .elevate {
-    box-shadow: 0 10px 30px rgb(0 0 0 / 0.12);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
     transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
   }
 
   .elevate-hover:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 20px 48px rgb(0 0 0 / 0.34);
+    transform: translateY(-2px);
+    box-shadow: 0 18px 40px rgb(0 0 0 / 0.3);
   }
 
   /** 按下时的轻微缩放，模拟 iOS 的触感反馈 */
@@ -211,6 +256,59 @@
     animation: skeleton-shimmer 1.4s ease-in-out infinite;
   }
 
+  /* ============================================================================
+   *  枪械图位（UI-009）
+   *
+   *  这块版面在"没有可用枪械图"时也必须站得住，所以它的成本被刻意压到零：
+   *  三层 background 画网格 + 分类色相辉光 + 底，全静态；
+   *  没有节点、没有 blur、没有 animation —— 图鉴有 89 张卡，
+   *  任何一条持续运行的装饰都会变成整页的固定税。
+   *  色相由 --wp-hue 传入（lib/gunCatalog.ts 的 categoryToneOf），认不出来时是中性灰。
+   * ========================================================================== */
+  .weapon-plate {
+    background-color: #121820;
+    background-image:
+      linear-gradient(180deg, rgb(238 241 244 / 0.025), transparent 46%),
+      repeating-linear-gradient(
+        90deg,
+        rgb(238 241 244 / 0.035) 0 1px,
+        transparent 1px 32px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        rgb(238 241 244 / 0.035) 0 1px,
+        transparent 1px 32px
+      );
+    box-shadow: inset 0 1px 0 0 rgb(238 241 244 / 0.05);
+  }
+  /* 左上一枚中性灰角标：零节点，不参与语义 */
+  .weapon-plate::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    width: 9px;
+    height: 9px;
+    pointer-events: none;
+    border-top: 1px solid rgb(238 241 244 / 0.28);
+    border-left: 1px solid rgb(238 241 244 / 0.28);
+  }
+  /* 下缘渐隐：让空位像展柜，而不是没贴图的灰坑 */
+  .weapon-plate::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 58%;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgb(13 18 23 / 0.86));
+  }
+  .weapon-plate > * {
+    position: relative;
+  }
+  .weapon-plate img {
+    position: absolute;
+  }
+
   /* 隐藏横向滚动条但保留滚动能力（分类 Pills 在窄屏使用） */
   .no-scrollbar {
     scrollbar-width: none;
@@ -218,6 +316,316 @@
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* ------------------------------------------------------------ V2 空间层 */
+
+  /**
+   * 战术小标签。
+   *
+   * 用 ink-2 而非 ink-3：实测 ink-3 在暗底上只有约 3.7:1，
+   * 只够大号文字；这类 10px 的标签若用 ink-3 会直接读不出来。
+   * 字距只加在拉丁字符上 —— 中文标题加负字距会挤成一团。
+   */
+  .hud-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+  }
+
+  /**
+   * 受光边缘面板。
+   *
+   * 用内描边渐变（顶亮、中暗、底透明）表达"这块板子有高度"，
+   * `mask-composite: exclude` 把渐变裁成一圈 1px 的边，
+   * 因此它能跟随 `border-radius: inherit`，不像真边框那样是方的。
+   */
+  .panel-lit {
+    position: relative;
+  }
+  .panel-lit::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      180deg,
+      var(--color-edge-top),
+      var(--color-edge-bottom) 46%,
+      transparent 78%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /**
+   * 噪点层：消除大面积径向渐变在部分屏幕上出现的色带（banding）。
+   * 只有 3.5% 不透明度 —— 它是"看出来的质感"，不该被"注意到"。
+   */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ============================================================
+   *  UI-001 战术 HUD 组件
+   *
+   *  刻意**不用 clip-path 做斜切边**：clip-path 会把 1px 描边和 box-shadow
+   *  一起裁掉，要还原就得套两层伪元素，脆且难维护。
+   *  HUD 的识别度来自"直角 + 角标 + 刻度 + 等宽字"，不是来自切角。
+   * ========================================================== */
+
+  /**
+   * 战术面板：比玻璃更"实"，因为仪器面板是金属而不是玻璃。
+   * 内描边用 inset shadow 表达顶部受光，四周等宽 hairline 收边。
+   */
+  .tactical-panel {
+    position: relative;
+    background:
+      linear-gradient(180deg, rgb(238 241 244 / 0.035), transparent 44%),
+      var(--color-carbon);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-hud);
+    box-shadow: inset 0 1px 0 rgb(238 241 244 / 0.06);
+  }
+
+  /** 更沉的一档：用于统计条这种"读数区"，让它比卡片更退后 */
+  .tactical-panel-quiet {
+    background: linear-gradient(180deg, rgb(238 241 244 / 0.02), transparent 60%), #121820;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-hud);
+  }
+
+  /**
+   * 角标：只画左上 + 右下两个 L。
+   * 四角都画会显得像模板站的"边框装饰"，两角不对称才是瞄准框。
+   * 纯装饰，所以 pointer-events:none 且不参与布局。
+   */
+  .hud-corners::before,
+  .hud-corners::after {
+    content: none;
+  }
+
+  /**
+   * 主行动按钮：直角、强调色实心、左侧一道冷光竖条。
+   * 文字走等宽 + 大字距 —— 这是 HUD 读数的语感，无衬线字体做不出来。
+   */
+  .btn-hud {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    background: var(--color-accent);
+    color: #0d1217;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    transition:
+      transform 0.2s var(--ease-hud),
+      background-color 0.2s var(--ease-hud),
+      border-color 0.2s var(--ease-hud);
+  }
+  .btn-hud:hover {
+    background: var(--color-accent-2);
+  }
+  .btn-hud:active {
+    transform: translateY(1px);
+  }
+
+  /** 次要按钮：只留描边，和主按钮差一档重量而不是差一个色相 */
+  .btn-hud-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    border: 1px solid var(--color-hairline-2);
+    border-radius: var(--radius-control);
+    color: var(--color-ink-2);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    transition:
+      border-color 0.2s var(--ease-hud),
+      color 0.2s var(--ease-hud),
+      background-color 0.2s var(--ease-hud);
+  }
+  .btn-hud-ghost:hover {
+    border-color: var(--color-accent-line);
+    color: var(--color-ink);
+    background-color: rgb(238 241 244 / 0.04);
+  }
+
+  /** 分隔标尺：一条 hairline 上叠重复竖纹，读作"刻度"而不是"分割线" */
+  .hud-rule {
+    height: 1px;
+    background: linear-gradient(90deg, var(--color-hairline), transparent);
+  }
+
+  /** 读数：等宽、大字距、冷色 —— 数字与单位之间靠字距而不是空格区分 */
+  .hud-readout {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.06em;
+  }
+
+  /* ============================================================
+   *  UI-002 武器库扩展
+   * ========================================================== */
+
+  /**
+   * 刻度尺：**只有刻线，没有数字**。
+   *
+   * 带数字的标尺会被读成"这把枪有实测长度数据"，而库里根本没有这一列。
+   * 纯刻线是装饰，带数字就是假数据 —— 这条界线不能糊。
+   */
+  .hud-ticks {
+    height: 6px;
+    background-image: repeating-linear-gradient(
+      90deg,
+      currentColor 0 1px,
+      transparent 1px 8px
+    );
+    color: var(--color-ink-3);
+    opacity: 0.2;
+  }
+
+  /**
+   * 分类导航项：直角、等宽计数、选中态用底部一道冷光而不是填充色块。
+   *
+   * 选中态刻意不用大面积 accent —— 分类条一旦亮起来应该像"当前通道"，
+   * 不像一个被按下的按钮。
+   */
+  .hud-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.42rem 0.7rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-hud);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--color-ink-2);
+    background-color: transparent;
+    transition:
+      color 0.2s var(--ease-hud),
+      border-color 0.2s var(--ease-hud),
+      background-color 0.2s var(--ease-hud);
+  }
+  .hud-tab:hover {
+    color: var(--color-ink);
+    border-color: var(--color-hairline);
+    background-color: rgb(238 241 244 / 0.04);
+  }
+  .hud-tab[data-active='true'] {
+    color: var(--color-ink);
+    border-color: var(--color-accent-line);
+    background-color: rgb(224 164 106 / 0.08);
+  }
+
+  /** 战术输入框：内嵌暗底 + hairline，聚焦时冷光描边，不做圆角胶囊 */
+  .hud-field {
+    width: 100%;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-hud);
+    background-color: rgb(13 18 23 / 0.8);
+    color: var(--color-ink);
+    font-size: 14px;
+    transition:
+      border-color 0.2s var(--ease-hud),
+      box-shadow 0.2s var(--ease-hud),
+      background-color 0.2s var(--ease-hud);
+  }
+  .hud-field::placeholder {
+    color: var(--color-ink-3);
+  }
+  .hud-field:hover {
+    border-color: var(--color-hairline-2);
+  }
+  .hud-field:focus {
+    outline: none;
+    border-color: var(--color-accent-line);
+    background-color: rgb(13 18 23 / 0.96);
+    box-shadow: 0 0 0 1px rgb(224 164 106 / 0.12);
+  }
+
+  /**
+   * 战术卡基座（UI-003 起为枪械卡与方案卡**共用**）。
+   *
+   * 原本叫 `.weapon-cell`，只有枪械卡用。方案卡要收进同一套语言时，
+   * 与其复制一份，不如把它改名成通用基座 —— 两份实现迟早会漂移，
+   * 而"两种卡片长得不太一样"正是本次要消灭的东西。
+   *
+   * 图区底色用 `--color-void`，让"没有图"的占位读起来像暗舱而不是坏图。
+   */
+  .tactical-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-hud);
+    background: linear-gradient(180deg, rgb(238 241 244 / 0.025), transparent 50%), var(--color-carbon);
+    transition:
+      border-color 0.2s var(--ease-hud),
+      background-color 0.2s var(--ease-hud);
+  }
+  .tactical-card:hover {
+    border-color: var(--color-accent-line);
+    background-color: #1a2128;
+  }
+
+  /**
+   * 页头导航项：静止时几乎不存在，当前页用底部一道冷光下划线标出。
+   *
+   * 不用填充色块 —— 导航栏里出现大色块会把它从"通道指示"变成"按钮"，
+   * 而页头本身已经有一个实心主按钮（发布）。
+   */
+  .hud-navlink {
+    position: relative;
+    padding: 0.4rem 0.7rem;
+    border-radius: var(--radius-hud);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-ink-2);
+    transition: color 0.2s var(--ease-hud);
+  }
+  .hud-navlink:hover {
+    color: var(--color-ink);
+  }
+  .hud-navlink[data-active='true'] {
+    color: var(--color-ink);
+  }
+  .hud-navlink[data-active='true']::after {
+    content: '';
+    position: absolute;
+    right: 0.7rem;
+    bottom: -2px;
+    left: 0.7rem;
+    height: 1px;
+    background: var(--color-accent);
   }
 }
 
@@ -295,6 +703,21 @@
   animation: modal-in 0.32s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
+/* 侧抽屉：从右侧滑入，位移克制 */
+@keyframes drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.animate-drawer-in {
+  animation: drawer-in 0.26s cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
 /* 遮罩淡入 */
 @keyframes fade-in {
   from {
@@ -308,16 +731,20 @@
   animation: fade-in 0.24s ease-out both;
 }
 
-/* 强调色的柔和呼吸光晕，用于主行动点 */
-@keyframes accent-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgb(255 159 10 / 0.34);
+/* ---------------------------------------------------------------------------
+ *  UI-001 战术动效
+ *
+ *  这里**没有**无限循环动画：首屏、背景光源、扫描线与状态点都改成静态。
+ *  89 张图鉴卡加 12 张方案卡时，任何一条常驻装饰都会变成整页的固定税；
+ *  唯一保留的循环是加载骨架（只在请求进行时存在）。
+ * ------------------------------------------------------------------------- */
+
+/* 枪械格 hover 时顶部那道冷光从左扫到右（一次性，不是循环） */
+@keyframes hud-cell-sweep {
+  from {
+    left: -40%;
   }
-  50% {
-    box-shadow: 0 0 0 8px rgb(255 159 10 / 0);
+  to {
+    left: 100%;
   }
-}
-.animate-accent-glow {
-  animation: accent-glow 2.6s ease-out infinite;
 }

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
-import { setAuthTokenProvider } from './api';
+import { setAuthTokenProvider } from './apiPublic';
 import { isSupabaseConfigured, supabase } from './supabaseClient';
 
 /* ============================================================================
@@ -31,8 +31,10 @@ export interface AuthContextValue {
   user: AuthUser | null;
   /** 初始会话恢复中 —— 期间不要根据 user === null 就判定"未登录" */
   loading: boolean;
-  /** 是否处于演示会话模式（未配置 Supabase） */
+  /** 是否处于演示会话模式（未配置 Supabase，或 Preview 只读模式） */
   isDemo: boolean;
+  /** Preview 只读模式：只允许本地演示会话，绝不连接 Supabase */
+  previewReadOnly: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
@@ -95,9 +97,18 @@ function validateCredentials(email: string, password: string): void {
 
 /* ---------------------------------------------------------- Provider */
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({
+  children,
+  previewReadOnly = false,
+}: {
+  children: ReactNode;
+  previewReadOnly?: boolean;
+}) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+
+  /** Preview 只读模式不触碰真实 Supabase；正式 Production 默认 false，行为不变 */
+  const activeSupabase = previewReadOnly ? null : supabase;
 
   /** 供 api.ts 读取当前令牌，用 ref 避免闭包拿到过期值 */
   const tokenRef = useRef<string | null>(null);
@@ -117,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* ---------------------------------------------- 恢复 / 订阅会话 */
   useEffect(() => {
     /* ---- 演示模式：从 localStorage 恢复 ---- */
-    if (!supabase) {
+    if (!activeSupabase) {
       try {
         const raw = window.localStorage.getItem(DEMO_SESSION_KEY);
         if (raw) {
@@ -137,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     /* ---- 真实 Supabase ---- */
     let active = true;
 
-    supabase.auth
+    activeSupabase.auth
       .getSession()
       .then(({ data }) => {
         if (!active) return;
@@ -160,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (active) setLoading(false);
       });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: subscription } = activeSupabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
       applySession(
         session?.user
@@ -182,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false;
       subscription.subscription.unsubscribe();
     };
-  }, [applySession]);
+  }, [activeSupabase, applySession]);
 
   /* ---------------------------------------------- 登录 / 注册 / 退出 */
 
@@ -190,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       validateCredentials(email, password);
 
-      if (!supabase) {
+      if (!activeSupabase) {
         const normalized = email.trim().toLowerCase();
         const demo: DemoSession = {
           user: {
@@ -205,26 +216,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error } = await activeSupabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
       if (error) throw new Error(translateAuthError(error.message));
     },
-    [applySession],
+    [activeSupabase, applySession],
   );
 
   const signUp = useCallback(
     async (email: string, password: string): Promise<SignUpResult> => {
       validateCredentials(email, password);
 
-      if (!supabase) {
+      if (!activeSupabase) {
         // 演示模式没有邮箱确认环节，注册即登录
         await signIn(email, password);
         return { needsEmailConfirm: false };
       }
 
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await activeSupabase.auth.signUp({
         email: email.trim(),
         password,
         options: { data: { nickname: email.trim().split('@')[0] ?? null } },
@@ -234,22 +245,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 开启邮箱确认时，signUp 不会返回 session
       return { needsEmailConfirm: data.session === null };
     },
-    [signIn],
+    [activeSupabase, signIn],
   );
 
   const signOut = useCallback(async () => {
-    if (!supabase) {
+    if (!activeSupabase) {
       window.localStorage.removeItem(DEMO_SESSION_KEY);
       applySession(null, null);
       return;
     }
-    await supabase.auth.signOut();
+    await activeSupabase.auth.signOut();
     applySession(null, null);
-  }, [applySession]);
+  }, [activeSupabase, applySession]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, isDemo: !isSupabaseConfigured, signIn, signUp, signOut }),
-    [user, loading, signIn, signUp, signOut],
+    () => ({
+      user,
+      loading,
+      isDemo: previewReadOnly || !isSupabaseConfigured,
+      previewReadOnly,
+      signIn,
+      signUp,
+      signOut,
+    }),
+    [user, loading, previewReadOnly, signIn, signUp, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

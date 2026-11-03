@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ApiError, fetchBuilds } from '../lib/api';
+import { ApiError, fetchBuilds } from '../lib/apiPublic';
 import type { BuildDTO, Pagination, SortKey } from '../types/api';
 import type { PlatformFilter } from '../types/ui';
 
@@ -11,8 +11,16 @@ export interface FeedParams {
   sort: SortKey;
   page: number;
   pageSize: number;
+  /** 只看某一把枪的方案（枪械详情页用）。对应后端 `GET /api/builds?gun_id=` */
+  gunId?: string;
   /** 外部数据版本号，变化时强制重取（例如发布新方案后） */
   version?: number;
+  /**
+   * 暂停取数。用于"`?gun=` 还没在字典里解析完"这种**筛选条件尚未成立**的时刻 ——
+   * 不暂停就会先发一次不带 `gun_id` 的全量请求，虽然界面上被解析中的面板挡住了，
+   * 但"不拿未筛选的结果冒充筛选结果"这件事应该由数据层保证，不该只靠渲染分支。
+   */
+  paused?: boolean;
 }
 
 export interface FeedResult {
@@ -43,7 +51,7 @@ export interface FeedResult {
  *     避免每次点击都整页闪烁。
  */
 export function useBuildsFeed(params: FeedParams): FeedResult {
-  const { query, platform, category, sort, page, pageSize, version } = params;
+  const { query, platform, category, sort, page, pageSize, gunId, version, paused } = params;
 
   const [items, setItems] = useState<BuildDTO[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -65,6 +73,13 @@ export function useBuildsFeed(params: FeedParams): FeedResult {
     const seq = ++seqRef.current;
     const isStale = () => seq !== seqRef.current;
 
+    if (paused) {
+      // 连请求都不发。返回前不 ++seqRef 之外不做任何事：
+      // 恢复取数时 paused 变化会重跑这个 effect。
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setErrorCode(null);
@@ -76,6 +91,7 @@ export function useBuildsFeed(params: FeedParams): FeedResult {
       ...(query ? { q: query } : {}),
       ...(platform !== 'all' ? { platform } : {}),
       ...(category !== 'all' ? { category } : {}),
+      ...(gunId ? { gun_id: gunId } : {}),
     })
       .then((res) => {
         if (isStale()) return;
@@ -97,7 +113,7 @@ export function useBuildsFeed(params: FeedParams): FeedResult {
         if (isStale()) return;
         setLoading(false);
       });
-  }, [query, platform, category, sort, page, pageSize, reloadToken, version]);
+  }, [query, platform, category, sort, page, pageSize, gunId, paused, reloadToken, version]);
 
   const patchItem = useCallback<FeedResult['patchItem']>((id, patch) => {
     setItems((prev) =>

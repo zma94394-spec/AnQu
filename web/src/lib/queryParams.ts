@@ -22,6 +22,18 @@ export interface FeedFilters {
   category: string;
   sort: SortKey;
   page: number;
+  /**
+   * 按枪械筛选，值是 **canonical slug**（不是内部 uuid）。
+   *
+   * 为什么用 slug：`/guns/:slug` 用的就是它，链接可分享、可读，
+   * 而且 uuid 一旦出现在 URL 里就会被当成"枪械标识"被别处抄走，
+   * 等于制造第二套枪械身份。slug → gun_id 的换算由 `GET /api/guns`
+   * 这一份既有字典在运行时完成，后端 `?gun_id=` 照旧。
+   *
+   * 目前只有 `/builds` 认这个参数；其它页面改筛选时它会作为"被清掉"处理
+   * （`writeFilters` 不会凭空保留一个没人读的维度）。
+   */
+  gun: string;
 }
 
 /** 与 `writeFilters` 配合：这些值不写入 URL */
@@ -31,6 +43,7 @@ export const FILTER_DEFAULTS: FeedFilters = {
   category: 'all',
   sort: DEFAULT_SORT,
   page: 1,
+  gun: '',
 };
 
 export function readFilters(params: URLSearchParams): FeedFilters {
@@ -47,6 +60,7 @@ export function readFilters(params: URLSearchParams): FeedFilters {
       ? (sort as SortKey)
       : DEFAULT_SORT,
     page: Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1,
+    gun: (params.get('gun') ?? '').trim(),
   };
 }
 
@@ -59,6 +73,7 @@ export function writeFilters(filters: FeedFilters): URLSearchParams {
   if (filters.category !== FILTER_DEFAULTS.category) params.set('category', filters.category);
   if (filters.sort !== FILTER_DEFAULTS.sort) params.set('sort', filters.sort);
   if (filters.page !== FILTER_DEFAULTS.page) params.set('page', String(filters.page));
+  if (filters.gun !== FILTER_DEFAULTS.gun) params.set('gun', filters.gun);
 
   return params;
 }
@@ -69,6 +84,7 @@ export function hasActiveFilter(filters: FeedFilters): boolean {
     filters.q !== FILTER_DEFAULTS.q ||
     filters.platform !== FILTER_DEFAULTS.platform ||
     filters.category !== FILTER_DEFAULTS.category ||
-    filters.sort !== FILTER_DEFAULTS.sort
+    filters.sort !== FILTER_DEFAULTS.sort ||
+    filters.gun !== FILTER_DEFAULTS.gun
   );
 }

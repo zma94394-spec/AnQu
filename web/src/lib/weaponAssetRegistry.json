@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "$comment": "枪械图片资源映射表 —— 前端只渲染这里登记的条目。每一条都必须能通过 tools/web/check-weapon-assets.mjs 的授权字段、SHA-256 与真实图像头校验；文件放在 web/public/weapons/ 下，文件名必须等于 <slug>.<ext>。接入流程与判据见 docs/weapon_assets/README.md，来源调查与未纳入的候选见 docs/weapon_assets/CANDIDATES.md。",
+  "assets": []
+}

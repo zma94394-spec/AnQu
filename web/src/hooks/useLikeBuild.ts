@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
-import { likeBuild } from '../lib/api';
+import { isPreviewReadOnly, likeBuild, notifyPreviewBlocked } from '../lib/apiPublic';
 
 export interface UseLikeBuildParams {
   buildId: string;
@@ -37,6 +37,12 @@ export function useLikeBuild({
 
   const like = useCallback(async () => {
     if (pending) return;
+
+    if (isPreviewReadOnly()) {
+      notifyPreviewBlocked('点赞');
+      setFailed(true);
+      return;
+    }
 
     setPending(true);
     setFailed(false);

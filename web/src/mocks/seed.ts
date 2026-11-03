@@ -2,15 +2,20 @@
  * ============================================================================
  *  内置 Mock 数据 —— 仅用于「后端未启动时也能完整预览界面」
  *
- *  数据来源：`db/04_seed.sql` 的种子数据（6 分类 / 8 把枪 / 6 个方案 / 2 条评论）
- *           + 若干额外补充条目（见文件内 `EXTRA` 标注），
+ *  数据来源：`db/04_seed.sql` 的种子数据（8 分类 / 10 把枪 / 6 个方案 / 2 条评论）
+ *           + 若干额外补充条目（见文件内 `EXTRA` 标注：3 个方案 / 3 条评论），
  *             目的是让预览的列表密度与评论区接近真实场景，不是真实业务数据。
+ *
+ *  ⚠️ 分类字典与枪械身份（slug / name / name_en / category）**必须与种子一致**。
+ *     这条契约由 `npm run check:mocks` 对着 `db/04_seed.sql` 机器核对 ——
+ *     手写副本一定会漂，历史上就漂过一次（mock 缺 `lmg`，导致 Mock 模式下
+ *     `/weapons` 看不到轻机枪分类，而当时的 check:mocks 完全查不出来）。
  *
  *  ⚠️ 三点刻意的设计：
  *   1. **评分在本地按后端公式重算**，而不是写死数字。这样 Mock 模式下的
  *      "最热 / 性价比最高"排序结果与真实后端一致，不会出现"看着一样、排序不同"的错觉。
- *   2. **icon_url 全部为 null**。真实种子数据里是占位域名（assets.example-anqu.com），
- *      在预览中会渲染成一片破图；置 null 可以顺带验证前端的降级渲染路径。
+ *   2. **icon_url 全部为 null**。种子在 DATA-005 已把占位域名清成 NULL，
+ *      这里同样留 null，顺带验证前端的降级渲染路径（"枪械图待接入"）。
  *   3. **评论数从评论数据推导**，不手写。卡片徽标与详情页评论列表条数必须一致，
  *      手写两处必然漂移，文件末尾有一致性自检兜底。
  *
@@ -20,6 +25,7 @@
  * ============================================================================
  */
 
+import { SEED_DEMO_BUILD_IDS } from '../lib/buildProvenance';
 import type {
   BuildDTO,
   CategoryDTO,
@@ -34,6 +40,9 @@ import type {
 const CATEGORIES: CategoryDTO[] = [
   { slug: 'assault_rifle', name: '突击步枪', sort_order: 10, gun_count: 0, build_count: 0 },
   { slug: 'smg', name: '冲锋枪', sort_order: 20, gun_count: 0, build_count: 0 },
+  // 21 / 25 都落在冲锋枪(20) 与射手步枪(30) 之间，取值与 `db/04_seed.sql` 逐字一致
+  { slug: 'carbine', name: '卡宾枪', sort_order: 21, gun_count: 0, build_count: 0 },
+  { slug: 'lmg', name: '轻机枪', sort_order: 25, gun_count: 0, build_count: 0 },
   { slug: 'dmr', name: '射手步枪', sort_order: 30, gun_count: 0, build_count: 0 },
   { slug: 'sniper_rifle', name: '狙击枪', sort_order: 40, gun_count: 0, build_count: 0 },
   { slug: 'shotgun', name: '霰弹枪', sort_order: 50, gun_count: 0, build_count: 0 },
@@ -58,6 +67,12 @@ const GUN_SEEDS: GunSeed[] = [
   { id: 'a1000004-0000-4000-8000-000000000004', slug: 'akm', name: 'AKM', name_en: 'AKM', category: 'assault_rifle' },
   { id: 'a1000005-0000-4000-8000-000000000005', slug: 'mp5', name: 'MP5', name_en: 'MP5', category: 'smg' },
   { id: 'a1000006-0000-4000-8000-000000000006', slug: 'p90', name: 'P90', name_en: 'P90', category: 'smg' },
+  // RPK-16：唯一一把轻机枪。slug / name / name_en / category 逐字段取自
+  // `db/04_seed.sql` 与线上 `/api/guns`（CATALOG-002 已核）。
+  // id 沿用本文件的 mock 命名空间 `a10000NN-…`，**不是**生产 uuid ——
+  // 现有 9 把枪的 id 与生产 id 全部不同（0/9 相符），这是刻意的：
+  // mock 数据不能伪装成能拿去请求真实后端的身份。
+  { id: 'a1000010-0000-4000-8000-000000000010', slug: 'rpk-16', name: 'RPK-16', name_en: 'RPK-16', category: 'lmg' },
   { id: 'a1000007-0000-4000-8000-000000000007', slug: 'mosin-nagant', name: 'Mosin-Nagant', name_en: 'Mosin-Nagant', category: 'sniper_rifle' },
   { id: 'a1000008-0000-4000-8000-000000000008', slug: 'm700', name: 'M700', name_en: 'M700', category: 'sniper_rifle' },
 ];
@@ -79,8 +94,24 @@ interface BuildSeed {
   ageHours: number;
 }
 
+/**
+ * 方案夹具。
+ *
+ * ⚠️ **只存在于 dev/mock 世界，绝不进生产页面**：生产构建里 `VITE_USE_MOCK=false`，
+ * 这些行一个都不会渲染。这里刻意保留**非零**的 likes_count / copies_count，
+ * 目的是让 `sort=hot` / `sort=cost_performance` 与热度榜在浏览器里可测
+ * （全 0 会让四种排序退化成同一条 id 序，排序用例就失去意义）。
+ *
+ * 因此 `likes_count / copies_count` 两列**不再与 `db/04_seed.sql` 相符**：
+ * UI-014 起，权威种子里这六行的互动计数一律为 0 —— 预置非零计数会经
+ * `build_hot_score()` 直接把演示条目送上热度榜，等于把初始化基线包装成玩家热度
+ * （守卫见 tests/ui014_data_trust.test.mjs T1）。
+ * 需要"特定计数 + 特定验证态"的公开页断言请走显式桩数据
+ * （web/e2e/ui013-build-fixture.spec.ts / ui014-data-trust.spec.ts），
+ * 不要依赖这里的数字。
+ */
 const BUILD_SEEDS: BuildSeed[] = [
-  /* ---- 来自 db/04_seed.sql 第 3.1 节：通用演示方案 ---- */
+  /* ---- 条目取自 db/04_seed.sql 第 3.1 节：通用演示方案（计数为夹具自造，见上方说明） ---- */
   {
     id: '11111111-1111-4111-8111-111111111111',
     gunSlug: 'akm',
@@ -226,9 +257,11 @@ interface CommentSeed {
 /**
  * 评论数据。
  *
- * 前两条来自 `db/04_seed.sql` 第 4 节，其余为让评论区预览更接近真实而补充。
- * `author` 一律为 null —— 种子数据里的评论都是匿名发表的（author_id 为 NULL），
- * 前端必须能正确渲染"匿名指挥官"这条降级路径。
+ * ⚠️ **全部是夹具自造，没有一条来自权威种子**：`db/04_seed.sql` 第 4 节原有 2 条预写
+ * 评论，UI-014 起已整节删除（评论属于玩家行为，代写"用了一周，稳定带走两个"
+ * 这种第一人称体验就是伪造证言）。本文件保留这些文本，是因为评论区需要一个
+ * **非空列表**才能测出渲染/登录降级路径；它们只在 dev/mock 世界出现。
+ * `author` 一律为 null —— 让前端必须正确处理"匿名"这条降级路径。
  */
 const COMMENT_SEEDS: CommentSeed[] = [
   {
@@ -303,6 +336,7 @@ export function cpScore(likes: number, copies: number, cost: number): number {
 
 const gunBySlug = new Map(GUN_SEEDS.map((g) => [g.slug, g]));
 const categoryNameBySlug = new Map(CATEGORIES.map((c) => [c.slug, c.name]));
+const seedDemoIds = new Set<string>(SEED_DEMO_BUILD_IDS);
 
 export const MOCK_BUILDS: BuildDTO[] = BUILD_SEEDS.map((seed) => {
   const gun = gunBySlug.get(seed.gunSlug);
@@ -325,6 +359,8 @@ export const MOCK_BUILDS: BuildDTO[] = BUILD_SEEDS.map((seed) => {
     cp_score: cpScore(seed.likes_count, seed.copies_count, seed.estimated_cost),
     created_at: createdAt,
     updated_at: createdAt,
+    // 六个 db/04 种子 = SEED_DEMO；EXTRA 预览条目没有来源登记，落 UNATTRIBUTED。
+    data_origin: seedDemoIds.has(seed.id) ? 'SEED_DEMO' : 'UNATTRIBUTED',
     gun: {
       id: gun.id,
       name: gun.name,

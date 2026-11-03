@@ -1,0 +1,109 @@
+/* ============================================================================
+ *  首页主视觉（UI-017）
+ *
+ *  静态 WebP + CSS 渐变，没有持续动画、没有 Canvas/WebGL。
+ *  左半区由遮罩压暗，保证标题与搜索在 1440 / 1920 / 窄屏都可读；
+ *  插画失败时 .home-hero 自身的渐变就是无图降级背景。
+ * ========================================================================== */
+
+.home-hero {
+  background:
+    radial-gradient(52% 90% at 78% 42%, rgb(52 63 76 / 0.55) 0%, transparent 68%),
+    linear-gradient(135deg, #0e141b 0%, #121a22 55%, #0d1218 100%);
+}
+
+.home-hero-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 70% 22%;
+  opacity: 0.94;
+}
+
+.home-hero-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      90deg,
+      rgb(10 15 21 / 0.97) 0%,
+      rgb(10 15 21 / 0.86) 34%,
+      rgb(10 15 21 / 0.34) 64%,
+      rgb(10 15 21 / 0.22) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgb(10 15 21 / 0.12) 0%,
+      rgb(10 15 21 / 0.04) 40%,
+      rgb(10 15 21 / 0.94) 100%
+    );
+}
+
+/* 只在右侧灯区加一点暖意，不把整张图泡在橙色里 */
+.home-hero-warm {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    32% 48% at 79% 52%,
+    rgb(224 164 106 / 0.17) 0%,
+    transparent 72%
+  );
+  mix-blend-mode: screen;
+}
+
+/* 唯一主搜索：玻璃底 + 暖琥珀聚焦环，内部不做第二层输入框 */
+.home-search {
+  border: 1px solid rgb(238 241 244 / 0.14);
+  border-radius: 12px;
+  background: rgb(9 13 19 / 0.74);
+  backdrop-filter: blur(16px) saturate(120%);
+  box-shadow:
+    0 20px 55px -28px rgb(0 0 0 / 0.92),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+  transition:
+    border-color 0.2s var(--ease-hud),
+    background-color 0.2s var(--ease-hud),
+    box-shadow 0.2s var(--ease-hud);
+}
+
+.home-search:hover {
+  border-color: rgb(238 241 244 / 0.24);
+}
+
+.home-search:focus-within {
+  border-color: var(--color-accent-line);
+  background: rgb(9 13 19 / 0.9);
+  box-shadow:
+    0 0 0 3px rgb(224 164 106 / 0.1),
+    0 20px 55px -28px rgb(0 0 0 / 0.95);
+}
+
+@media (max-width: 767px) {
+  .home-hero-art {
+    object-position: 73% 28%;
+    opacity: 0.7;
+  }
+
+  .home-hero-shade {
+    background:
+      linear-gradient(
+        90deg,
+        rgb(10 15 21 / 0.97) 0%,
+        rgb(10 15 21 / 0.9) 58%,
+        rgb(10 15 21 / 0.64) 100%
+      ),
+      linear-gradient(180deg, rgb(10 15 21 / 0.5) 0%, rgb(10 15 21 / 0.96) 100%);
+  }
+
+  .home-hero-warm {
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-search {
+    transition: none;
+  }
+}

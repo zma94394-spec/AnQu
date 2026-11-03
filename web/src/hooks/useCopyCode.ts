@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { copyBuild } from '../lib/api';
+import { copyBuild, isPreviewReadOnly, notifyPreviewBlocked } from '../lib/apiPublic';
+import { isCopyableCode } from '../lib/buildCode';
 import { writeToClipboard } from '../lib/clipboard';
 
 /** "已复制！" 反馈的保持时长（毫秒），与需求规格一致 */
@@ -11,8 +12,6 @@ export type CopyState = 'idle' | 'copied' | 'failed';
 export interface UseCopyCodeParams {
   buildId: string;
   code: string;
-  /** 当前复制数，用于接口失败时本地兜底 +1 */
-  copiesCount: number;
   onPatch: (id: string, patch: { copies_count: number }) => void;
 }
 
@@ -21,6 +20,11 @@ export interface UseCopyCodeResult {
   copy: () => Promise<void>;
   /** 按钮文案，随状态变化 */
   label: string;
+  /**
+   * 这串码能不能复制。`false` 时 UI 必须禁用按钮 ——
+   * 一条格式不完整的码复制出去，用户在游戏内只会得到一次失败。
+   */
+  canCopy: boolean;
 }
 
 /**
@@ -35,16 +39,11 @@ export interface UseCopyCodeResult {
 export function useCopyCode({
   buildId,
   code,
-  copiesCount,
   onPatch,
 }: UseCopyCodeParams): UseCopyCodeResult {
   const [state, setState] = useState<CopyState>('idle');
   const timerRef = useRef<number | null>(null);
-
-  // 用 ref 持有最新计数，避免把 copiesCount 写进 useCallback 依赖后
-  // 每次计数变化都重建回调
-  const copiesRef = useRef(copiesCount);
-  copiesRef.current = copiesCount;
+  const canCopy = useMemo(() => isCopyableCode(code), [code]);
 
   useEffect(() => {
     return () => {
@@ -53,9 +52,20 @@ export function useCopyCode({
   }, []);
 
   const copy = useCallback(async () => {
+    // UI 已经禁用了按钮，这里是第二道：键盘触发或状态竞态下也不能写剪贴板。
+    // 判据与提交侧共用 `lib/buildCode.ts`，不存在"这里放行、那里报错"。
+    if (!canCopy) return;
+
+    if (isPreviewReadOnly()) {
+      notifyPreviewBlocked('复制改枪码');
+      return;
+    }
+
+    // 原样写入：不 trim、不大小写转换、不裁剪前缀 —— 复制出去的必须与库里那串逐字符相同。
     const ok = await writeToClipboard(code);
 
     if (!ok) {
+      // 剪贴板没写进去 ⇒ 这次复制**没有发生**，所以一次都不许上报。
       setState('failed');
     } else {
       setState('copied');
@@ -66,17 +76,23 @@ export function useCopyCode({
         const result = await copyBuild(buildId);
         onPatch(buildId, { copies_count: result.copies_count });
       } catch {
-        // 接口失败时本地先 +1，保证视觉反馈不倒退
-        onPatch(buildId, { copies_count: copiesRef.current + 1 });
+        /*
+         * 上报失败时**不动页面上的数字**。
+         *
+         * 之前这里写的是"本地先 +1"，理由是"视觉反馈不倒退"。但那等于在屏幕上
+         * 显示一个服务端从未接受的计数 —— 页面报的是"站内统计"，而后端没变，
+         * 这就是 UI-014 STEP 4 禁止的"假复制量"，哪怕只活一次刷新。
+         * 复制成功的反馈由 state='copied' 独立承担，不需要借数字来说话。
+         */
       }
     }
 
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => setState('idle'), COPY_FEEDBACK_MS);
-  }, [buildId, code, onPatch]);
+  }, [buildId, canCopy, code, onPatch]);
 
   const label =
     state === 'copied' ? '已复制！' : state === 'failed' ? '复制失败' : '复制改枪码';
 
-  return { state, copy, label };
+  return { state, copy, label, canCopy };
 }

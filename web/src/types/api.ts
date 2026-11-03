@@ -39,6 +39,12 @@ export interface BuildDTO {
   /** ISO 8601 字符串（后端 Date 经 JSON 序列化） */
   created_at: string;
   updated_at: string;
+  /**
+   * 来源标记（db/10）：`SEED_DEMO` / `USER_SUBMISSION` / `UNATTRIBUTED`。
+   * 列不存在或未声明时后端回 `UNATTRIBUTED` —— 前端只能显示“来源未核实”，
+   * 不得把“未知”反推成“玩家投稿”。
+   */
+  data_origin: string;
   gun: {
     id: string;
     name: string;
@@ -92,6 +98,11 @@ export interface ApiSuccess<T> {
   success: true;
   data: T;
   pagination?: Pagination;
+  /**
+   * P5D-A 投稿端点带的一点附加说明（`{decision, message}`），
+   * 刻意做成可选：既有端点一个都不受影响。
+   */
+  meta?: SubmissionMeta;
 }
 
 /** 错误信封，对应后端 `errorHandler` */
@@ -210,3 +221,139 @@ export interface CreateCommentInput {
 
 /** 评论内容长度上限，与后端 `createCommentBodySchema` 的 `.max(500)` 对齐 */
 export const COMMENT_MAX_LENGTH = 500;
+
+/* ============================================================
+ *  P5D-A 候选投稿与人工审核
+ *  真源：src/schemas/build-submissions.schema.ts + db/07_build_submissions.sql
+ * ============================================================ */
+
+/** 投稿码长度区间（**去首尾空白之后**计；与 build_submissions_code_len 一致） */
+export const SUBMISSION_CODE_MIN = 8;
+export const SUBMISSION_CODE_MAX = 2048;
+
+/** 投稿侧平台声明。比 builds 的 platform 多一个 `unknown`：诚实表达"我没说" */
+export type SubmissionPlatformClaim = 'pc' | 'mobile' | 'both' | 'unknown';
+
+export type SubmissionSourceKind = 'SELF_GENERATED' | 'IN_GAME_COPY' | 'OTHER_SITE' | 'UNKNOWN';
+
+/**
+ * 提交者**自述**。⚠️ 这里没有 PASS / VERIFIED：
+ * "我测过能导入"只是声明，不构成为客户端证据（后端枚举 build_submission_claim 同样封闭）。
+ */
+export type SubmitterClaim = 'NOT_TESTED' | 'CLAIMED_IMPORTABLE' | 'CLAIMED_NOT_IMPORTABLE' | 'UNKNOWN';
+
+export type SubmissionStatus = 'PENDING_REVIEW' | 'APPROVED_FOR_LISTING' | 'REJECTED';
+
+export type ReviewDecision = 'APPROVE' | 'REJECT';
+
+export interface SubmissionMeta {
+  decision?: string;
+  message?: string;
+  /** 旧入口 POST /api/builds（P5D-B 起）：只排队，不发布 */
+  queued?: boolean;
+  publicly_listed?: boolean;
+  legacy_endpoint?: boolean;
+  duplicate?: boolean;
+  next_step?: string;
+  /** 裁定响应里的公开库轴 */
+  listing_status?: string | null;
+}
+
+/** 同字节 token 的**现场**验证态（来自 build_codes，投稿表里没有副本） */
+export interface SubmissionVerificationView {
+  /** null = 这串字节还没有 token 记录；不等于"未验证"这个结论 */
+  token_status: string | null;
+  token_id: string | null;
+  token_verification_method: string | null;
+  token_verification_note: string | null;
+  listed_build_id: string | null;
+}
+
+/** 对应后端 SubmissionDTO（src/services/build-submissions.service.ts） */
+export interface SubmissionDTO {
+  id: string;
+  code: string;
+  /** 字节封条前 12 位：用于人眼确认"我投的那串没被改过" */
+  code_sha256_12: string;
+  weapon_claim: string;
+  gun_id: string | null;
+  gun_name: string | null;
+  platform_claim: SubmissionPlatformClaim | string;
+  region_claim: string | null;
+  source_kind: SubmissionSourceKind | string;
+  source_url: string | null;
+  source_note: string | null;
+  submitter_claim: SubmitterClaim | string;
+  title: string;
+  estimated_cost: number;
+  tags: string[];
+  description: string | null;
+  status: SubmissionStatus;
+  submitted_at: string;
+  reviewed_by: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  machine_decision: string | null;
+  machine_reasons: string[];
+  existing_build_code_id: string | null;
+  materialized_build_id: string | null;
+  verification: SubmissionVerificationView;
+  /* ---- P5D-B：三条轴各说各的话，前端不许把它们混成一个"已验证" ----
+   * 审核轴 = status；公开库轴 = listed_build_status / publicly_listed；
+   * 客户端验证轴 = verification.token_status（只能由真机导入产生）。 */
+  /** 核准落库那条 build 的当前状态；还没核准或没有对应行时为 null */
+  listed_build_status: string | null;
+  /** 是否已经在公开库里（GET /api/builds 查得到）。核准 ≠ 上架 */
+  publicly_listed: boolean;
+  /** 上架时间与操作人（来自 publish_approved_build，客户端改不动） */
+  published_at: string | null;
+  published_by: string | null;
+  /**
+   * 跨账号 / 跨区服兼容性：本站**没有测过**，后端恒返回 UNKNOWN。
+   * 前端不得把它渲染成"可用/通用/全平台可导入"。
+   */
+  cross_server_compatibility: 'UNKNOWN';
+}
+
+/**
+ * 旧入口 `POST /api/builds`（P5D-B 起）的真实返回：
+ * 它不再是"发布"，而是把这条内容**排进人工审核队列**。
+ * 前端必须按这个形状说话，不得渲染成"发布成功/已加入改枪库"。
+ */
+export interface SubmissionQueueReceipt {
+  submission: SubmissionDTO;
+  /** 后端 202 的 meta：确实只进了队列 */
+  queued: boolean;
+  /** 上架轴：排队阶段永远 false（true 只能来自 publish） */
+  publicly_listed: boolean;
+  status: SubmissionStatus;
+  duplicate: boolean;
+  next_step: string;
+}
+
+/** `POST /api/build-submissions` 请求体（后端 .strict()，多一个字段就 400） */
+export interface CreateSubmissionInput {
+  code: string;
+  weapon_claim: string;
+  platform_claim: SubmissionPlatformClaim;
+  region_claim?: string | null;
+  source_kind: SubmissionSourceKind;
+  source_url?: string | null;
+  source_note?: string | null;
+  submitter_claim: SubmitterClaim;
+  title: string;
+  /**
+   * 非负整数；**留空时后端归一为 0**。
+   * 类型刻意允许 string：填了但格式不对时必须原样交给后端拒，
+   * 不能在前端偷偷改成 0 —— "3.2万" 与 "没填" 是两件不同的事。
+   */
+  estimated_cost: number | string;
+  tags: string[];
+  description?: string | null;
+}
+
+/** `GET /api/build-submissions[/mine]` 归一化返回 */
+export interface SubmissionsPage {
+  items: SubmissionDTO[];
+  pagination: Pagination;
+}

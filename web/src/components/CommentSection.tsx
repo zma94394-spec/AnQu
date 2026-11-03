@@ -1,12 +1,23 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ChevronDown, CircleAlert, Loader2, LogIn, MessageSquare, Send } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ChevronDown, CircleAlert, Info, Loader2, LogIn, MessageSquare, Send } from 'lucide-react';
 
 import { useAppShell } from '../lib/appShell';
 import { useAuth } from '../lib/auth';
-import { ApiError, createComment, fetchComments } from '../lib/api';
+import {
+  ApiError,
+  createComment,
+  fetchComments,
+  isPreviewReadOnly,
+  isPreviewReadOnlyError,
+  notifyPreviewBlocked,
+  PREVIEW_READ_ONLY_MESSAGE,
+  USE_MOCK,
+} from '../lib/apiPublic';
 import { cn } from '../lib/cn';
 import { formatRelativeTime } from '../lib/format';
+import { riseConverge } from '../lib/hudMotion';
 import { COMMENT_MAX_LENGTH } from '../types/api';
 import type { CommentDTO, Pagination } from '../types/api';
 
@@ -19,6 +30,23 @@ export interface CommentSectionProps {
   onCommentAdded: () => void;
 }
 
+/**
+ * 评论区。
+ *
+ * UI-005 是**纯样式**改动：下面两个 useEffect、`loadMore`、`handleSubmit`
+ * 以及所有 `aria-label` / `role` / 文案一字未动。
+ *
+ * ⚠️ 这些是 e2e 直接依赖的选择器，改样式时不能碰：
+ *   - `getByText('登录后即可发表评论与点赞')`
+ *   - `getByRole('textbox', { name: '评论内容' })`（未登录时必须**不存在**）
+ *   - `getByRole('button', { name: '发表评论' })`
+ *   - `getByText(评论内容)` —— 新发表的评论要能在 DOM 里找到
+ *   - `role="alert"` 的**数量**：方案详情页只在错误态用 1 个，
+ *     这里两个 alert 都只在出错时才渲染，所以正常路径上不会撞 strict mode。
+ *
+ * 没有新增任何指标：不显示点赞数、声望、活跃度、在线状态 ——
+ * `CommentDTO` 里也没有这些字段，摆出来只能是编的。
+ */
 export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps) {
   const { openAuth } = useAppShell();
   const { user } = useAuth();
@@ -97,6 +125,12 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
         return;
       }
 
+      if (isPreviewReadOnly()) {
+        notifyPreviewBlocked('发表评论');
+        setSubmitError(PREVIEW_READ_ONLY_MESSAGE);
+        return;
+      }
+
       setSubmitting(true);
       setSubmitError(null);
 
@@ -112,6 +146,8 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
         if (err instanceof ApiError && err.code === 'AUTH_REQUIRED') {
           setSubmitError('登录状态已失效，请重新登录后再发表评论。');
           openAuth();
+        } else if (isPreviewReadOnlyError(err)) {
+          setSubmitError(err.message);
         } else if (err instanceof ApiError) {
           setSubmitError(err.message);
         } else {
@@ -127,18 +163,31 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
   const remaining = COMMENT_MAX_LENGTH - content.length;
 
   return (
-    <section aria-label="评论区" className="mt-8">
-      <h2 className="flex items-center gap-2.5 text-[17px] font-semibold tracking-[-0.022em] text-ink">
-        <MessageSquare className="h-4 w-4 text-accent" aria-hidden="true" />
+    /*
+     * `variants` 不配 `initial`/`animate` —— 它从 BuildDetail 那层的
+     * `staggerContainer` 继承，所以整节跟着页面一起揭示，不需要自己编排。
+     * 评论条目**不做逐条动画**：列表是异步追加的，逐条入场会在"加载更多"时
+     * 让整片文字跳动，而这里要的只是可读的社区交流。
+     */
+    <motion.section aria-label="评论区" variants={riseConverge} className="mt-14">
+      <h2 className="flex items-center gap-2.5 text-[20px] font-semibold tracking-[-0.026em] text-ink lg:text-[24px]">
+        <MessageSquare className="h-4 w-4 text-hud" aria-hidden="true" />
         评论
         {pagination && (
-          <span className="font-mono text-[13px] font-normal text-ink-3">{pagination.total}</span>
+          <span className="hud-readout text-[13px] font-normal text-ink-3">{pagination.total}</span>
         )}
       </h2>
 
+      {USE_MOCK && (
+        <p className="mt-3 flex items-start gap-2 rounded-hud border border-accent/25 bg-accent/[0.04] px-3.5 py-2.5 text-[12px] leading-relaxed text-ink-3">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+          演示评论：以下内容来自内置 Mock 数据，不是真实玩家留言。
+        </p>
+      )}
+
       {/* ------------------------------------------------ 发表评论 */}
       {user ? (
-        <form onSubmit={handleSubmit} className="mt-4">
+        <form onSubmit={handleSubmit} className="mt-5">
           <textarea
             value={content}
             onChange={(event) => {
@@ -150,17 +199,15 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
             placeholder="说说这套改枪的实际手感，或者补充一句子弹建议…"
             aria-label="评论内容"
             className={cn(
-              'w-full rounded-panel border border-hairline bg-glass px-4 py-3',
-              'text-[14px] leading-relaxed text-ink placeholder:text-ink-3',
-              `transition-all duration-300 ${EASE}`,
-              'hover:bg-glass-2 focus:border-hairline-2 focus:bg-glass-2 focus:outline-none',
+              'hud-field min-h-[92px] resize-y px-4 py-3 text-[14px] leading-relaxed',
+              submitError && 'border-danger/60 focus:border-danger',
             )}
           />
 
           <div className="mt-2.5 flex items-center justify-between gap-3">
             <span
               className={cn(
-                'font-mono text-[11px]',
+                'hud-readout text-[11px]',
                 remaining < 0 ? 'text-danger' : remaining < 50 ? 'text-accent' : 'text-ink-3',
               )}
             >
@@ -171,10 +218,7 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
               type="submit"
               disabled={submitting}
               className={cn(
-                'press flex items-center gap-1.5 rounded-chip bg-accent px-4 py-2',
-                'text-[13px] font-semibold text-black',
-                `transition-all duration-300 ${EASE}`,
-                'hover:bg-accent-2 hover:shadow-[0_6px_20px_rgb(255_159_10_/_0.4)]',
+                'btn-hud press !px-4 !py-2 !text-[12px] !tracking-[0.14em]',
                 'disabled:cursor-wait disabled:opacity-60',
               )}
             >
@@ -195,7 +239,11 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
           {submitError && (
             <p
               role="alert"
-              className="mt-2.5 flex items-start gap-1.5 rounded-panel border border-danger/30 bg-danger/8 px-3.5 py-2.5 text-[12px] leading-relaxed text-ink-2"
+              className={cn(
+                'mt-2.5 flex items-start gap-1.5 rounded-hud border border-danger/35',
+                'bg-danger/10 px-3.5 py-2.5 text-[12px] leading-relaxed text-ink-2',
+                EASE,
+              )}
             >
               <CircleAlert className="mt-px h-3.5 w-3.5 shrink-0 text-danger" aria-hidden="true" />
               {submitError}
@@ -205,16 +253,12 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
       ) : (
         /* 未登录时不展示表单：让用户填完再被 401 打回来是纯粹的浪费。
            直接给出登录入口，语义更清楚。 */
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-panel border border-hairline bg-glass px-4 py-3.5">
+        <div className="tactical-panel-quiet mt-5 flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
           <span className="text-[13px] text-ink-2">登录后即可发表评论与点赞</span>
           <button
             type="button"
             onClick={openAuth}
-            className={cn(
-              'press flex items-center gap-1.5 rounded-chip bg-accent px-4 py-2',
-              'text-[13px] font-semibold text-black',
-              `transition-all duration-300 ${EASE} hover:bg-accent-2`,
-            )}
+            className="btn-hud press !px-4 !py-2 !text-[12px] !tracking-[0.14em]"
           >
             <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
             登录
@@ -227,10 +271,10 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
         {loading && (
           <div className="space-y-3" aria-hidden="true">
             {Array.from({ length: 2 }, (_, i) => (
-              <div key={i} className="rounded-panel border border-hairline bg-glass p-4">
-                <div className="skeleton h-3 w-24 rounded" />
-                <div className="skeleton mt-3 h-3 w-full rounded" />
-                <div className="skeleton mt-2 h-3 w-2/3 rounded" />
+              <div key={i} className="tactical-panel-quiet p-4">
+                <div className="skeleton h-3 w-24 rounded-hud" />
+                <div className="skeleton mt-3 h-3 w-full rounded-hud" />
+                <div className="skeleton mt-2 h-3 w-2/3 rounded-hud" />
               </div>
             ))}
           </div>
@@ -243,7 +287,7 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
         )}
 
         {!loading && !listError && comments.length === 0 && (
-          <p className="rounded-panel border border-dashed border-hairline bg-glass/60 px-4 py-10 text-center text-[13px] text-ink-3">
+          <p className="rounded-hud border border-dashed border-hairline bg-black/25 px-4 py-12 text-center text-[13px] text-ink-3">
             还没有评论，来说说这套改枪的实际手感吧。
           </p>
         )}
@@ -253,17 +297,22 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
             {comments.map((comment) => (
               <li
                 key={comment.id}
-                className="rounded-panel border border-hairline bg-glass px-4 py-3.5"
+                /*
+                 * 左侧一道 2px 冷光边是这一节唯一的"几何"—— 它把每条发言
+                 * 串成一条讨论线，读起来像同一份档案的批注，而不是 telemetry。
+                 * 刻意不加序号、时间轴刻度或任何数字。
+                 */
+                className="tactical-panel-quiet border-l-2 border-l-hud/25 px-4 py-3.5"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[13px] font-semibold text-ink-2">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="truncate text-[13px] font-semibold text-ink-2">
                     {comment.author?.nickname ?? '匿名指挥官'}
                   </span>
-                  <span className="shrink-0 text-[11px] text-ink-3">
+                  <span className="hud-readout shrink-0 text-[11px] text-ink-3">
                     {formatRelativeTime(comment.created_at)}
                   </span>
                 </div>
-                <p className="mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink">
+                <p className="mt-2 whitespace-pre-line break-words text-[14px] leading-relaxed text-ink">
                   {comment.content}
                 </p>
               </li>
@@ -277,9 +326,9 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
             onClick={loadMore}
             disabled={loadingMore}
             className={cn(
-              'press mt-3.5 flex w-full items-center justify-center gap-1.5 rounded-panel',
-              'bg-glass py-2.5 text-[13px] font-semibold text-ink-2',
-              `transition-all duration-300 ${EASE} hover:bg-glass-2 hover:text-ink`,
+              'press mt-3.5 flex w-full items-center justify-center gap-1.5 rounded-hud',
+              'border border-hairline bg-white/[0.03] py-2.5 text-[13px] font-semibold text-ink-2',
+              `transition-all duration-300 ${EASE} hover:border-hud hover:text-hud`,
               'disabled:opacity-50',
             )}
           >
@@ -292,6 +341,6 @@ export function CommentSection({ buildId, onCommentAdded }: CommentSectionProps)
           </button>
         )}
       </div>
-    </section>
+    </motion.section>
   );
 }

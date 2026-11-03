@@ -13,6 +13,7 @@
  */
 
 import { TAG_MAX_COUNT, TAG_MAX_LENGTH } from '../types/ui';
+import { BUILD_CODE_PATTERN } from './buildCode';
 import type { CreateBuildInput, Platform } from '../types/api';
 
 export interface PublishFormValues {
@@ -39,9 +40,7 @@ export const EMPTY_FORM: PublishFormValues = {
 };
 
 /* -------------------------------------------------- 与后端对齐的常量 */
-
-/** 与后端 `CODE_PATTERN` 完全一致：可打印 ASCII（不含空白），8~2048 位 */
-const CODE_PATTERN = /^[\x21-\x7E]{8,2048}$/;
+/*  改枪码判据不在这里 —— 本体在 `lib/buildCode.ts`，提交侧与显示侧共用同一份实现。 */
 
 const TITLE_MIN = 2;
 const TITLE_MAX = 80;
@@ -86,7 +85,7 @@ export function validateField(
       if (/\s/.test(code)) return '改枪码不能包含空格或换行，请重新粘贴';
       if (code.length < 8) return `改枪码至少 8 位（当前 ${code.length} 位）`;
       if (code.length > 2048) return `改枪码最多 2048 位（当前 ${code.length} 位）`;
-      if (!CODE_PATTERN.test(code)) return '改枪码只能包含可打印字符，请检查是否混入了中文';
+      if (!BUILD_CODE_PATTERN.test(code)) return '改枪码只能包含可打印字符，请检查是否混入了中文';
       return undefined;
     }
 

@@ -14,7 +14,7 @@ export function BuildCardSkeleton({ index = 0 }: { index?: number }) {
   return (
     <div
       style={{ animationDelay: `${Math.min(index, 6) * 65}ms` }}
-      className="animate-rise-in flex h-full flex-col rounded-card border border-hairline bg-glass p-5"
+      className="animate-rise-in flex h-full flex-col rounded-hud border border-hairline bg-carbon p-5"
       aria-hidden="true"
     >
       <div className="flex items-start justify-between gap-3">
@@ -76,7 +76,7 @@ export function EmptyState({ hasActiveFilter, onReset }: EmptyStateProps) {
       </p>
       <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-ink-2">
         {hasActiveFilter
-          ? '试着换个枪械分类、切换平台，或者把搜索关键字放宽一些。'
+          ? '试着换个枪械分类、清除枪械筛选、切换平台，或者把搜索关键字放宽一些。'
           : '成为第一个分享改枪码的先锋 —— 点击右上角「发布方案」提交你的配置。'}
       </p>
       {hasActiveFilter && (

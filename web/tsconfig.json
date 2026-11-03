@@ -21,5 +21,12 @@
 
     "types": ["vite/client"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/App.tsx",
+    "src/main.tsx",
+    "src/pages/HomePage.tsx",
+    "src/components/Header.tsx",
+    "src/lib/api.ts"
+  ]
 }
