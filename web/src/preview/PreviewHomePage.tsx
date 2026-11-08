@@ -122,7 +122,7 @@ export function PreviewHomePage() {
         )}
       >
         <div className={cn(immersive && 'home-sheet')}>
-          <div className="px-4 py-5 sm:px-6">
+          <div className="home-rail-block px-4 py-5 sm:px-6">
             <WeaponRail categories={categories} guns={guns} />
           </div>
 

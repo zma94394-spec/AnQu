@@ -112,8 +112,9 @@
 .home-launcher {
   position: relative;
   z-index: 10;
-  min-height: calc(100vh - 68px);
-  min-height: calc(100svh - 68px);
+  /* 不再让 Hero 占满首屏：紧凑高度给下方方案区留出首屏可见入口。
+     高度与 Header 解耦，避免再依赖 68/104 这类硬编码页头高度。 */
+  min-height: clamp(320px, 37svh, 350px);
   display: flex;
   align-items: flex-end;
   padding-block: clamp(20px, 4vh, 48px) clamp(56px, 9vh, 104px);
@@ -213,16 +214,40 @@
 }
 
 @media (max-width: 767px) {
-  /* 手机端页头会折行到 ~96px，按实际剩余高度撑满，
-     否则权利说明会被顶出首屏——那等于把它藏起来。 */
+  /* 手机端不再用固定 104px 页头假设：Hero 采用紧凑高度，
+     内容在 Header 之后自然流式排列，滚动提示/权利说明不再被顶出视口。 */
   .home-launcher {
-    min-height: calc(100vh - 104px);
-    min-height: calc(100svh - 104px);
-    padding-bottom: 4.6rem;
+    min-height: clamp(230px, 30svh, 260px);
+    padding-block: 20px 56px;
   }
 
   .home-launcher-inner {
     padding-inline: 1rem;
+  }
+
+  /* 枪械分类在窄屏改为单行横向滚动，保留全部 8 个入口，
+     不再把 4 行分类堆在方案区上方，给首屏卡片留出可见入口。 */
+  .home-rail-block {
+    padding-block: 0.5rem;
+  }
+
+  .home-rail-block > section > div:last-child {
+    display: flex;
+    gap: 1px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .home-rail-block > section > div:last-child::-webkit-scrollbar {
+    display: none;
+  }
+
+  .home-rail-block > section > div:last-child > a {
+    flex: 0 0 46%;
+    scroll-snap-align: start;
   }
 
   .home-scene-img {
