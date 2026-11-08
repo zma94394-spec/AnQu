@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { expectCardsRendered, probeCards } from './ui020-visibility-probe';
 
 /**
  * 清理版 UI-020 公开 Preview 的验收：
@@ -97,5 +98,155 @@ test.describe('UI-020 清理版公开 Preview', () => {
     await expect(page.getByRole('heading', { level: 1, name: '找到你的改枪方案。' })).toBeVisible();
     await expect(page.getByRole('textbox')).toHaveCount(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBe(0);
+  });
+});
+
+/* ============================================================================
+ *  UI020-014：BuildCard 内容可见性兜底
+ *
+ *  这些用例不看“节点是否存在”，而是看计算 opacity、可见面积与命中测试；
+ *  BuildCard 的内容不得依赖 IntersectionObserver 触发才能显示。
+ * ========================================================================== */
+
+test.describe('UI020-014 BuildCard 内容可见性兜底', () => {
+  test('正常视口：首页卡片默认可见，滚动后可见且可命中', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await expect(page.locator('article').first()).toBeAttached();
+
+    // 首屏之外也必须已经是 opacity:1，而不是等 IntersectionObserver 触发
+    const initial = await probeCards(page);
+    expect(initial.length).toBeGreaterThan(0);
+    for (const card of initial) expect(card.opacity).toBe('1');
+
+    await page.locator('.home-scroll-cue').click();
+    await page.waitForTimeout(900);
+    await expectCardsRendered(page, { minVisible: 3 });
+  });
+
+  test('正常视口：/builds 卡片默认可见', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/builds');
+    await expect(page.locator('article').first()).toBeAttached();
+    await page.waitForTimeout(600);
+    await expectCardsRendered(page, { minVisible: 1 });
+  });
+
+  test('IntersectionObserver 不触发：卡片仍可见', async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as any).__ui020IOConstructed = 0;
+      class NeverIntersect {
+        constructor() {
+          (window as any).__ui020IOConstructed += 1;
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+        takeRecords() {
+          return [];
+        }
+      }
+      Object.defineProperty(window, 'IntersectionObserver', {
+        configurable: true,
+        value: NeverIntersect,
+      });
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await expect(page.locator('article').first()).toBeAttached();
+    const initial = await probeCards(page);
+    expect(initial.length).toBeGreaterThan(0);
+    for (const card of initial) expect(card.opacity).toBe('1');
+    await page.locator('.home-scroll-cue').click();
+    await page.waitForTimeout(900);
+    await expectCardsRendered(page, { minVisible: 3 });
+
+    await page.goto('/builds');
+    await expect(page.locator('article').first()).toBeAttached();
+    await expectCardsRendered(page, { minVisible: 1 });
+
+    // 只断言“可见”还不够：确认页面根本没有为卡片创建 IntersectionObserver
+    expect(await page.evaluate(() => (window as any).__ui020IOConstructed)).toBe(0);
+  });
+
+  test('0×0 视口（Chromium 钳到 1×1，并同时模拟 JS 0×0）：卡片仍可见', async ({ page }) => {
+    await page.addInitScript(() => {
+      let zero = true;
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        get: () => (zero ? 0 : document.documentElement.clientWidth),
+      });
+      Object.defineProperty(window, 'innerHeight', {
+        configurable: true,
+        get: () => (zero ? 0 : document.documentElement.clientHeight),
+      });
+      (window as any).__ui020RestoreViewportMetrics = () => {
+        zero = false;
+      };
+    });
+
+    // Chromium 不允许真正的 0×0 layout viewport，setViewportSize(0,0) 会钳到 1×1；
+    // 同时把页面可见的 innerWidth/innerHeight 覆盖为 0，覆盖“0×0 视口”和“无交集”两种条件。
+    await page.setViewportSize({ width: 1, height: 1 });
+    await page.goto('/');
+    await expect(page.locator('article').first()).toBeAttached();
+    expect(await page.evaluate(() => [window.innerWidth, window.innerHeight])).toEqual([0, 0]);
+    await expectCardsRendered(page, { minVisible: 0, requireHit: false });
+
+    await page.evaluate(() => (window as any).__ui020RestoreViewportMetrics());
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.waitForTimeout(300);
+    await page.locator('.home-scroll-cue').click();
+    await page.waitForTimeout(900);
+    await expectCardsRendered(page, { minVisible: 3 });
+  });
+
+  test('后台标签仿真：隐藏状态下加载，切回后仍可见', async ({ page }) => {
+    await page.addInitScript(() => {
+      let hidden = true;
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => (hidden ? 'hidden' : 'visible'),
+      });
+      Object.defineProperty(document, 'hidden', {
+        configurable: true,
+        get: () => hidden,
+      });
+      (window as any).__ui020SetTabVisible = () => {
+        hidden = false;
+        document.dispatchEvent(new Event('visibilitychange'));
+      };
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await expect(page.locator('article').first()).toBeAttached();
+    expect(await page.evaluate(() => document.visibilityState)).toBe('hidden');
+
+    // 后台加载完成时，卡片已经是 opacity:1；不依赖切回前台再触发动画
+    const background = await probeCards(page);
+    expect(background.length).toBeGreaterThan(0);
+    for (const card of background) expect(card.opacity).toBe('1');
+
+    await page.evaluate(() => (window as any).__ui020SetTabVisible());
+    await page.waitForTimeout(300);
+    await page.locator('.home-scroll-cue').click();
+    await page.waitForTimeout(900);
+    await expectCardsRendered(page, { minVisible: 3 });
+  });
+
+  test('reduced-motion：卡片仍可见', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await expect(page.locator('article').first()).toBeAttached();
+
+    const cards = await expectCardsRendered(page, { minVisible: 0, requireHit: false });
+    for (const card of cards) expect(card.opacity).toBe('1');
+
+    await page.locator('.home-scroll-cue').click();
+    await page.waitForTimeout(400);
+    await expectCardsRendered(page, { minVisible: 3 });
   });
 });

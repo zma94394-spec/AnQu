@@ -11,7 +11,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
-  testMatch: /(ui020-preview-readonly|ui020-preview-native-form)\.spec\.ts/,
+  testMatch: /(ui020-preview-readonly|ui020-preview-native-form|ui020-preview-visibility-built)\.spec\.ts/,
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,

@@ -11,7 +11,7 @@ import { cn } from '../lib/cn';
 import { UNCOPYABLE_CODE_HINT } from '../lib/buildCode';
 import { monogramOf } from '../lib/gunCatalog';
 import { formatCoinsCompact, formatCount, formatRelativeTime } from '../lib/format';
-import { riseConverge } from '../lib/hudMotion';
+import { EASE_SPATIAL } from '../lib/hudMotion';
 import { EASE } from '../lib/styles';
 import type { BuildDTO } from '../types/api';
 
@@ -55,12 +55,15 @@ export function BuildCard({ build, onPatch, index = 0 }: BuildCardProps) {
   });
 
   return (
+    // 可见性不依赖 IntersectionObserver：首帧即 opacity 1，入场只做轻微位移。
     <motion.article
-      variants={riseConverge}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: '0px 0px -8% 0px' }}
-      transition={{ delay: Math.min(index, 8) * 0.04 }}
+      initial={{ y: 12 }}
+      animate={{ y: 0 }}
+      transition={{
+        duration: 0.5,
+        ease: EASE_SPATIAL,
+        delay: Math.min(index, 8) * 0.04,
+      }}
       className={cn('tactical-card group relative flex h-full flex-col')}
     >
       {/* 枪械铭牌：中性灰，不用未核验的 icon_url 出图 */}
