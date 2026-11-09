@@ -213,6 +213,18 @@
   background: rgb(21 29 39 / 0.88);
 }
 
+.home-rail-scroller {
+  position: relative;
+}
+
+.home-rail-fade {
+  display: none;
+}
+
+.home-rail-end-spacer {
+  display: none;
+}
+
 @media (max-width: 767px) {
   /* 手机端不再用固定 104px 页头假设：Hero 采用紧凑高度，
      内容在 Header 之后自然流式排列，滚动提示/权利说明不再被顶出视口。 */
@@ -231,23 +243,42 @@
     padding-block: 0.5rem;
   }
 
-  .home-rail-block > section > div:last-child {
+  .home-rail-grid {
     display: flex;
     gap: 1px;
     overflow-x: auto;
     overflow-y: hidden;
+    /* 末卡用 flex spacer 留出渐隐余量；不用 padding，避免缩小卡片 */
+    scroll-padding-right: 2.5rem;
     scrollbar-width: none;
     -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
   }
 
-  .home-rail-block > section > div:last-child::-webkit-scrollbar {
+  .home-rail-end-spacer {
+    display: block;
+    flex: 0 0 2.5rem;
+  }
+
+  .home-rail-grid::-webkit-scrollbar {
     display: none;
   }
 
-  .home-rail-block > section > div:last-child > a {
+  .home-rail-grid > a {
     flex: 0 0 46%;
     scroll-snap-align: start;
+  }
+
+  .home-rail-fade {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    display: block;
+    width: 2.5rem;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgb(10 14 20 / 0.94) 64%);
   }
 
   .home-scene-img {
@@ -276,6 +307,8 @@
     right: 0.75rem;
     bottom: 0.7rem;
     font-size: 11px;
+    /* 移动端小字提高对比度；桌面端保持原有层级不变 */
+    color: rgb(238 241 244 / 0.82);
   }
 
   .home-rights-detail {
